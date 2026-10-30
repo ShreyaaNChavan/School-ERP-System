@@ -30,4 +30,9 @@ class School extends Model
     {
         return $this->hasMany(Campus::class);
     }
+
+    public function students()
+    {
+        return $this->hasMany(StudentProfile::class);
+    }
 }
