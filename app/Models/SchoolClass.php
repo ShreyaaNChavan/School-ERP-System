@@ -32,4 +32,9 @@ class SchoolClass extends Model
     {
         return $this->hasMany(Section::class, 'school_class_id');
     }
+
+    public function classSubjects(): HasMany
+    {
+        return $this->hasMany(ClassSubject::class, 'school_class_id');
+    }
 }

@@ -1008,6 +1008,182 @@
             </section>
         </main>
     </div>
+
+
+    {{-- SchoolNexa Flash Toast Notifications --}}
+    @php
+        $toastMessages = [];
+
+        foreach (['success', 'error', 'warning', 'info'] as $type) {
+            if (session()->has($type)) {
+                $toastMessages[] = [
+                    'type' => $type,
+                    'message' => session($type)
+                ];
+            }
+        }
+
+        if ($errors->any()) {
+            $toastMessages[] = [
+                'type' => 'error',
+                'message' => $errors->first()
+            ];
+        }
+    @endphp
+
+    <div id="sn-toast-container" style="position:fixed;top:90px;right:24px;z-index:99999;
+            display:flex;flex-direction:column;gap:12px;
+            width:min(380px,calc(100vw - 32px));">
+
+        @foreach($toastMessages as $toast)
+            <div class="sn-toast sn-toast-{{ $toast['type'] }}">
+                <div class="sn-toast-icon">
+                    @if($toast['type'] === 'success')
+                        ✓
+                    @elseif($toast['type'] === 'error')
+                        !
+                    @elseif($toast['type'] === 'warning')
+                        ⚠
+                    @else
+                        i
+                    @endif
+                </div>
+
+                <div class="sn-toast-content">
+                    <strong>{{ ucfirst($toast['type']) }}</strong>
+                    <span>{{ $toast['message'] }}</span>
+                </div>
+
+                <button type="button" class="sn-toast-close" onclick="this.parentElement.remove()">
+                    &times;
+                </button>
+            </div>
+        @endforeach
+    </div>
+
+    <style>
+        .sn-toast {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 15px;
+            border: 1px solid;
+            border-radius: 12px;
+            background: #fff;
+            box-shadow: 0 8px 28px rgba(15, 23, 42, .13);
+            animation: snToastIn .3s ease;
+            font-family: Inter, sans-serif;
+        }
+
+        .sn-toast-success {
+            border-color: #86efac;
+        }
+
+        .sn-toast-error {
+            border-color: #fca5a5;
+        }
+
+        .sn-toast-warning {
+            border-color: #fcd34d;
+        }
+
+        .sn-toast-info {
+            border-color: #93c5fd;
+        }
+
+        .sn-toast-icon {
+            width: 27px;
+            height: 27px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-weight: 700;
+        }
+
+        .sn-toast-success .sn-toast-icon {
+            color: #16a34a;
+            background: #dcfce7;
+        }
+
+        .sn-toast-error .sn-toast-icon {
+            color: #dc2626;
+            background: #fee2e2;
+        }
+
+        .sn-toast-warning .sn-toast-icon {
+            color: #d97706;
+            background: #fef3c7;
+        }
+
+        .sn-toast-info .sn-toast-icon {
+            color: #2563eb;
+            background: #dbeafe;
+        }
+
+        .sn-toast-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 13px;
+            color: #25313c;
+        }
+
+        .sn-toast-content strong {
+            font-size: 14px;
+        }
+
+        .sn-toast-content span {
+            line-height: 1.5;
+        }
+
+        .sn-toast-close {
+            border: 0;
+            background: transparent;
+            color: #64748b;
+            font-size: 22px;
+            cursor: pointer;
+            padding: 0 3px;
+        }
+
+        @keyframes snToastIn {
+            from {
+                opacity: 0;
+                transform: translateX(25px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes snToastOut {
+            to {
+                opacity: 0;
+                transform: translateX(25px);
+            }
+        }
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('.sn-toast').forEach(function (toast) {
+                setTimeout(function () {
+                    if (!toast.isConnected) return;
+
+                    toast.style.animation = 'snToastOut .3s ease forwards';
+
+                    setTimeout(function () {
+                        toast.remove();
+                    }, 300);
+                }, 4500);
+            });
+        });
+    </script>
+
 </body>
 
 </html>
