@@ -1,3 +1,4 @@
+
 @extends('layouts.schoolnexa')
 
 @section('content')
@@ -111,22 +112,29 @@
                                 </span>
                             </td>
                             <td>
-                                <button type="button" class="cs-outline-btn"
-                                        onclick="csToggle('editClass{{ $class->id }}')">
-                                    Edit
-                                </button>
-
-                                <form method="POST"
-                                      action="{{ route('class-sections.classes.status', $class) }}"
-                                      class="cs-inline-form">
-                                    @csrf
-                                    @method('PATCH')
-                                    <button type="submit" class="cs-text-btn">
-                                        {{ $class->is_active ? 'Deactivate' : 'Activate' }}
+                                <div class="cs-actions">
+                                    <button type="button"
+                                            class="cs-outline-btn"
+                                            onclick="csToggle('editClass{{ $class->id }}')">
+                                        Edit
                                     </button>
-                                </form>
+
+                                    <form method="POST"
+                                          action="{{ route('class-sections.classes.status', $class) }}"
+                                          class="cs-inline-form"
+                                          onsubmit="return confirm('Are you sure you want to change this class status?')">
+                                        @csrf
+                                        @method('PATCH')
+
+                                        <button type="submit"
+                                                class="cs-text-btn {{ $class->is_active ? 'cs-deactivate' : 'cs-activate' }}">
+                                            {{ $class->is_active ? 'Deactivate' : 'Activate' }}
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
+
                         <tr id="editClass{{ $class->id }}" hidden>
                             <td colspan="7">
                                 <div class="cs-form-box">
@@ -136,7 +144,9 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="7" class="cs-empty">No classes found.</td></tr>
+                        <tr>
+                            <td colspan="7" class="cs-empty">No classes found.</td>
+                        </tr>
                     @endforelse
                 </tbody>
             </table>
@@ -190,22 +200,29 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <button type="button" class="cs-outline-btn"
-                                            onclick="csToggle('editSection{{ $section->id }}')">
-                                        Edit
-                                    </button>
-
-                                    <form method="POST"
-                                          action="{{ route('class-sections.sections.status', $section) }}"
-                                          class="cs-inline-form">
-                                        @csrf
-                                        @method('PATCH')
-                                        <button type="submit" class="cs-text-btn">
-                                            {{ $section->is_active ? 'Deactivate' : 'Activate' }}
+                                    <div class="cs-actions">
+                                        <button type="button"
+                                                class="cs-outline-btn"
+                                                onclick="csToggle('editSection{{ $section->id }}')">
+                                            Edit
                                         </button>
-                                    </form>
+
+                                        <form method="POST"
+                                              action="{{ route('class-sections.sections.status', $section) }}"
+                                              class="cs-inline-form"
+                                              onsubmit="return confirm('Are you sure you want to change this section status?')">
+                                            @csrf
+                                            @method('PATCH')
+
+                                            <button type="submit"
+                                                    class="cs-text-btn {{ $section->is_active ? 'cs-deactivate' : 'cs-activate' }}">
+                                                {{ $section->is_active ? 'Deactivate' : 'Activate' }}
+                                            </button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
+
                             <tr id="editSection{{ $section->id }}" hidden>
                                 <td colspan="7">
                                     <div class="cs-form-box">
@@ -225,6 +242,7 @@
 <script>
 function csToggle(id) {
     const element = document.getElementById(id);
+
     if (element) {
         element.hidden = !element.hidden;
     }
@@ -232,50 +250,327 @@ function csToggle(id) {
 </script>
 
 <style>
-.cs-page{font-family:Inter,sans-serif;color:#25313C}
-.cs-header{margin-bottom:22px}
-.cs-header h1{font-size:23px;font-weight:700;color:#123B5D;margin:0}
-.cs-header p{font-size:13px;color:#64748B;margin:6px 0 0}
-.cs-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:20px}
-.cs-stat,.cs-panel{background:#fff;border:1px solid #CBD5E1;border-radius:16px;padding:19px}
-.cs-stat span{display:block;color:#64748B;font-size:12px;margin-bottom:8px}
-.cs-stat strong{font-size:25px;color:#123B5D}
-.cs-green{color:#16A34A!important}
-.cs-panel{margin-bottom:20px}
-.cs-panel-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}
-.cs-panel-heading h2{font-size:16px;color:#123B5D;margin:0}
-.cs-panel-heading p{font-size:12px;color:#64748B;margin:5px 0 0}
-.cs-primary-btn{background:#123B5D;color:#fff;border:1px solid #123B5D;border-radius:9px;padding:10px 16px;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;white-space:nowrap}
-.cs-outline-btn{background:#fff;color:#123B5D;border:1px solid #CBD5E1;border-radius:8px;padding:7px 11px;font-size:12px;font-weight:600;cursor:pointer}
-.cs-text-btn{background:none;border:0;color:#176B87;font-size:12px;font-weight:600;cursor:pointer;padding:7px}
-.cs-inline-form{display:inline-block}
-.cs-filters{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:17px}
-.cs-filters input,.cs-filters select,.cs-form-grid input,.cs-form-grid select{height:40px;padding:0 11px;border:1px solid #CBD5E1;border-radius:8px;background:#fff;color:#25313C;font-size:12px;width:100%;box-sizing:border-box}
-.cs-filters input{flex:1;min-width:200px;width:auto}
-.cs-filters select{width:auto;min-width:150px}
-.cs-filter-btn{height:40px;padding:0 17px;background:#176B87;color:#fff;border:0;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer}
-.cs-reset{display:flex;align-items:center;color:#64748B;font-size:12px;text-decoration:none;padding:0 8px}
-.cs-table-wrap{overflow-x:auto}
-.cs-table{width:100%;border-collapse:collapse;white-space:nowrap}
-.cs-table th{text-align:left;background:#F8FAFC;padding:12px;color:#64748B;font-size:10px;text-transform:uppercase;letter-spacing:.04em}
-.cs-table td{padding:13px 12px;border-bottom:1px solid #E2E8F0;font-size:12px}
-.cs-status{display:inline-block;border-radius:20px;padding:5px 9px;font-size:10px;font-weight:600}
-.cs-status.active{background:#DCFCE7;color:#15803D}
-.cs-status.inactive{background:#FEE2E2;color:#B91C1C}
-.cs-empty{text-align:center;color:#64748B;padding:30px!important}
-.cs-pagination{margin-top:16px}
-.cs-form-box{padding:17px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;margin:15px 0}
-.cs-form-box h3{font-size:14px;color:#123B5D;margin:0 0 15px}
-.cs-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
-.cs-form-grid label{display:block;font-size:12px;font-weight:600;margin-bottom:7px;color:#334155}
-.cs-form-grid label span{color:#DC2626}
-.cs-form-actions{margin-top:17px}
-.cs-error{display:block;color:#DC2626;font-size:11px;margin-top:5px}
-.cs-alert{padding:12px 15px;border-radius:10px;margin-bottom:16px;font-size:12px}
-.cs-alert.success{background:#DCFCE7;color:#166534}
-.cs-alert.error{background:#FEE2E2;color:#991B1B}
-.cs-alert ul{margin:7px 0 0;padding-left:20px}
-@media(max-width:850px){.cs-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:600px){.cs-stats,.cs-form-grid{grid-template-columns:1fr}.cs-panel-heading{align-items:flex-start;flex-direction:column}}
+.cs-page {
+    font-family: Inter, sans-serif;
+    color: #25313C;
+}
+
+.cs-header {
+    margin-bottom: 22px;
+}
+
+.cs-header h1 {
+    font-size: 23px;
+    font-weight: 700;
+    color: #123B5D;
+    margin: 0;
+}
+
+.cs-header p {
+    font-size: 13px;
+    color: #64748B;
+    margin: 6px 0 0;
+}
+
+.cs-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.cs-stat,
+.cs-panel {
+    background: #fff;
+    border: 1px solid #CBD5E1;
+    border-radius: 16px;
+    padding: 19px;
+}
+
+.cs-stat span {
+    display: block;
+    color: #64748B;
+    font-size: 12px;
+    margin-bottom: 8px;
+}
+
+.cs-stat strong {
+    font-size: 25px;
+    color: #123B5D;
+}
+
+.cs-green {
+    color: #16A34A !important;
+}
+
+.cs-panel {
+    margin-bottom: 20px;
+}
+
+.cs-panel-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.cs-panel-heading h2 {
+    font-size: 16px;
+    color: #123B5D;
+    margin: 0;
+}
+
+.cs-panel-heading p {
+    font-size: 12px;
+    color: #64748B;
+    margin: 5px 0 0;
+}
+
+.cs-primary-btn {
+    background: #123B5D;
+    color: #fff;
+    border: 1px solid #123B5D;
+    border-radius: 9px;
+    padding: 10px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+/* Action buttons */
+.cs-outline-btn,
+.cs-text-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 0 12px;
+    border: 1px solid #CBD5E1;
+    border-radius: 9px;
+    background: #fff;
+    color: #123B5D;
+    font: 600 13px 'Inter', sans-serif;
+    text-decoration: none;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.cs-outline-btn:hover,
+.cs-text-btn:hover {
+    background: #F8FAFC;
+}
+
+.cs-text-btn.cs-deactivate {
+    color: #DC2626;
+}
+
+.cs-text-btn.cs-activate {
+    color: #16A34A;
+}
+
+.cs-inline-form {
+    display: inline-flex;
+}
+
+.cs-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+}
+
+.cs-filters {
+    display: flex;
+    gap: 9px;
+    flex-wrap: wrap;
+    margin-bottom: 17px;
+}
+
+.cs-filters input,
+.cs-filters select,
+.cs-form-grid input,
+.cs-form-grid select {
+    height: 40px;
+    padding: 0 11px;
+    border: 1px solid #CBD5E1;
+    border-radius: 8px;
+    background: #fff;
+    color: #25313C;
+    font-size: 12px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.cs-filters input {
+    flex: 1;
+    min-width: 200px;
+    width: auto;
+}
+
+.cs-filters select {
+    width: auto;
+    min-width: 150px;
+}
+
+.cs-filter-btn {
+    height: 40px;
+    padding: 0 17px;
+    background: #176B87;
+    color: #fff;
+    border: 0;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.cs-reset {
+    display: flex;
+    align-items: center;
+    color: #64748B;
+    font-size: 12px;
+    text-decoration: none;
+    padding: 0 8px;
+}
+
+.cs-table-wrap {
+    overflow-x: auto;
+}
+
+.cs-table {
+    width: 100%;
+    border-collapse: collapse;
+    white-space: nowrap;
+}
+
+.cs-table th {
+    text-align: left;
+    background: #F8FAFC;
+    padding: 12px;
+    color: #64748B;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+.cs-table td {
+    padding: 13px 12px;
+    border-bottom: 1px solid #E2E8F0;
+    font-size: 12px;
+}
+
+.cs-status {
+    display: inline-block;
+    border-radius: 20px;
+    padding: 5px 9px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.cs-status.active {
+    background: #DCFCE7;
+    color: #15803D;
+}
+
+.cs-status.inactive {
+    background: #FEE2E2;
+    color: #B91C1C;
+}
+
+.cs-empty {
+    text-align: center;
+    color: #64748B;
+    padding: 30px !important;
+}
+
+.cs-pagination {
+    margin-top: 16px;
+}
+
+.cs-form-box {
+    padding: 17px;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    margin: 15px 0;
+}
+
+.cs-form-box h3 {
+    font-size: 14px;
+    color: #123B5D;
+    margin: 0 0 15px;
+}
+
+.cs-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 15px;
+}
+
+.cs-form-grid label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 7px;
+    color: #334155;
+}
+
+.cs-form-grid label span {
+    color: #DC2626;
+}
+
+.cs-form-actions {
+    margin-top: 17px;
+}
+
+.cs-error {
+    display: block;
+    color: #DC2626;
+    font-size: 11px;
+    margin-top: 5px;
+}
+
+.cs-alert {
+    padding: 12px 15px;
+    border-radius: 10px;
+    margin-bottom: 16px;
+    font-size: 12px;
+}
+
+.cs-alert.success {
+    background: #DCFCE7;
+    color: #166534;
+}
+
+.cs-alert.error {
+    background: #FEE2E2;
+    color: #991B1B;
+}
+
+.cs-alert ul {
+    margin: 7px 0 0;
+    padding-left: 20px;
+}
+
+@media(max-width:850px) {
+    .cs-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media(max-width:600px) {
+    .cs-stats,
+    .cs-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .cs-panel-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
 </style>
 @endsection

@@ -13,7 +13,9 @@
         color: #25313C;
     }
 
-    .school-page * { box-sizing: border-box; }
+    .school-page * {
+        box-sizing: border-box;
+    }
 
     .school-header {
         display: flex;
@@ -67,7 +69,9 @@
         color: #25313C;
     }
 
-    .school-btn-light:hover { background: #F8FAFC; }
+    .school-btn-light:hover {
+        background: #F8FAFC;
+    }
 
     .school-panel {
         background: #fff;
@@ -149,7 +153,9 @@
         box-shadow: 0 0 0 3px rgba(23,107,135,.10);
     }
 
-    .school-table-wrap { overflow-x: auto; }
+    .school-table-wrap {
+        overflow-x: auto;
+    }
 
     .school-table {
         width: 100%;
@@ -177,7 +183,9 @@
         vertical-align: middle;
     }
 
-    .school-table tr:last-child td { border-bottom: 0; }
+    .school-table tr:last-child td {
+        border-bottom: 0;
+    }
 
     .school-name {
         color: #123B5D;
@@ -208,27 +216,47 @@
         background: #FEE2E2;
     }
 
+    /* Standardized action buttons */
     .school-actions {
         display: flex;
         align-items: center;
         gap: 8px;
+        flex-wrap: nowrap;
+    }
+
+    .school-actions form {
+        display: inline-flex;
+        margin: 0;
     }
 
     .school-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 40px;
+        padding: 0 12px;
         border: 1px solid #CBD5E1;
-        border-radius: 7px;
+        border-radius: 9px;
         background: #fff;
-        color: #176B87;
-        padding: 7px 10px;
-        font: 600 11px 'Inter', sans-serif;
+        color: #123B5D;
+        font: 600 13px 'Inter', sans-serif;
         text-decoration: none;
         cursor: pointer;
         white-space: nowrap;
     }
 
-    .school-action:hover { background: #F1F5F9; }
+    .school-action:hover {
+        background: #F8FAFC;
+        color: #123B5D;
+    }
 
-    .school-action-danger { color: #DC2626; }
+    .school-action-danger {
+        color: #DC2626;
+    }
+
+    .school-action-success {
+        color: #16A34A;
+    }
 
     .school-alert {
         padding: 12px 15px;
@@ -250,12 +278,22 @@
         color: #64748B !important;
     }
 
-    .school-pagination { margin-top: 18px; }
+    .school-pagination {
+        margin-top: 18px;
+    }
 
     @media (max-width: 640px) {
-        .school-heading h1 { font-size: 21px; }
-        .school-panel { padding: 15px; }
-        .school-filters { align-items: stretch; }
+        .school-heading h1 {
+            font-size: 21px;
+        }
+
+        .school-panel {
+            padding: 15px;
+        }
+
+        .school-filters {
+            align-items: stretch;
+        }
     }
 </style>
 
@@ -436,7 +474,7 @@
 
                                             <button
                                                 type="submit"
-                                                class="school-action school-action-danger"
+                                                class="school-action {{ $school->status === 'active' ? 'school-action-danger' : 'school-action-success' }}"
                                             >
                                                 {{ $school->status === 'active' ? 'Deactivate' : 'Activate' }}
                                             </button>

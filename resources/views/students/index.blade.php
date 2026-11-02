@@ -1,4 +1,3 @@
-
 @extends('layouts.schoolnexa')
 
 @section('content')
@@ -241,36 +240,47 @@
         background: #FEF3C7;
     }
 
+    /* STANDARD DIRECTORY ACTION BUTTONS */
     .std-actions {
         display: flex;
         align-items: center;
-        gap: 6px;
-        flex-wrap: wrap;
+        gap: 8px;
+        flex-wrap: nowrap;
+    }
+
+    .std-action-form {
+        display: inline-flex;
+        margin: 0;
     }
 
     .std-action {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 6px 9px;
+        min-height: 40px;
+        padding: 0 12px;
         border: 1px solid #CBD5E1;
-        border-radius: 7px;
-        color: #176B87;
-        font-size: 11px;
-        font-weight: 600;
+        border-radius: 9px;
+        background: #fff;
+        color: #123B5D;
+        font: 600 13px 'Inter', sans-serif;
         text-decoration: none;
-        background: white;
         cursor: pointer;
         white-space: nowrap;
+        transition: .2s;
     }
 
     .std-action:hover {
-        background: #F1F5F9;
+        background: #F8FAFC;
+        color: #123B5D;
     }
 
-    .std-action-form {
-        display: inline-flex;
-        margin: 0;
+    .std-action-danger {
+        color: #DC2626;
+    }
+
+    .std-action-success {
+        color: #16A34A;
     }
 
     .std-empty {
@@ -582,8 +592,9 @@
                                         </a>
                                     @endif
 
-                                    {{-- Edit Student --}}
+                                    {{-- Edit Student and Activate / Deactivate --}}
                                     @if(auth()->user()->hasPermission('STUDENTS.UPDATE'))
+
                                         <a
                                             href="{{ route('students.edit', $student) }}"
                                             class="std-action"
@@ -591,7 +602,6 @@
                                             Edit
                                         </a>
 
-                                        {{-- Activate / Deactivate --}}
                                         <form
                                             method="POST"
                                             action="{{ route('students.status', $student) }}"
@@ -601,11 +611,15 @@
                                             @csrf
                                             @method('PATCH')
 
-                                            <button type="submit" class="std-action">
+                                            <button
+                                                type="submit"
+                                                class="std-action {{ $student->status === 'active' ? 'std-action-danger' : 'std-action-success' }}"
+                                            >
                                                 {{ $student->status === 'active' ? 'Deactivate' : 'Activate' }}
                                             </button>
 
                                         </form>
+
                                     @endif
 
                                 </div>

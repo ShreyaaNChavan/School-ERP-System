@@ -14,8 +14,9 @@ use App\Http\Controllers\StaffController;
 use App\Http\Controllers\EmployeeProfileController;
 use App\Http\Controllers\ClassSectionController;
 use App\Http\Controllers\SubjectController;
-use App\Http\Controllers\CurriculumController;
 
+use App\Http\Controllers\CurriculumController;
+use App\Http\Controllers\AttendanceController;
 
 // Home
 Route::get('/', function () {
@@ -458,4 +459,184 @@ Route::middleware('auth')->prefix('lesson-plans')->name('lesson-plans.')->group(
     Route::get('/{lessonPlan}', [LessonPlanController::class, 'show'])
         ->middleware('permission:ACADEMICS.VIEW')
         ->name('show');
+});
+
+
+
+use App\Http\Controllers\TimetableController;
+
+Route::middleware('permission:ACADEMICS.VIEW')->group(function () {
+    Route::get('/timetables', [TimetableController::class, 'index'])
+        ->name('timetables.index');
+
+    Route::get('/timetables/create', [TimetableController::class, 'create'])
+        ->middleware('permission:ACADEMICS.CREATE')
+        ->name('timetables.create');
+
+    Route::get('/timetables/{timetable}', [TimetableController::class, 'show'])
+        ->name('timetables.show');
+
+    Route::get('/timetables/{timetable}/edit', [TimetableController::class, 'edit'])
+        ->middleware('permission:ACADEMICS.UPDATE')
+        ->name('timetables.edit');
+
+    Route::post('/timetables', [TimetableController::class, 'store'])
+        ->middleware('permission:ACADEMICS.CREATE')
+        ->name('timetables.store');
+
+    Route::put('/timetables/{timetable}', [TimetableController::class, 'update'])
+        ->middleware('permission:ACADEMICS.UPDATE')
+        ->name('timetables.update');
+
+    Route::delete('/timetables/{timetable}', [TimetableController::class, 'destroy'])
+        ->middleware('permission:ACADEMICS.DELETE')
+        ->name('timetables.destroy');
+
+    Route::post('/timetables/{timetable}/publish', [TimetableController::class, 'publish'])
+        ->middleware('permission:ACADEMICS.UPDATE')
+        ->name('timetables.publish');
+
+    Route::post('/timetables/{timetable}/archive', [TimetableController::class, 'archive'])
+        ->middleware('permission:ACADEMICS.UPDATE')
+        ->name('timetables.archive');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Attendance Management routes
+|--------------------------------------------------------------------------
+| Add these routes inside your existing authenticated route group.
+| Do not duplicate an existing attendance route group.
+*/
+Route::middleware('permission:ATTENDANCE.VIEW')->group(function () {
+    Route::get('/attendance', [\App\Http\Controllers\AttendanceController::class, 'index'])
+        ->name('attendance.index');
+
+    Route::get('/attendance/reports', [\App\Http\Controllers\AttendanceController::class, 'report'])
+        ->middleware('permission:ATTENDANCE.EXPORT')
+        ->name('attendance.report');
+});
+
+Route::post('/attendance', [\App\Http\Controllers\AttendanceController::class, 'store'])
+    ->middleware('permission:ATTENDANCE.CREATE')
+    ->name('attendance.store');
+
+
+/*
+|--------------------------------------------------------------------------
+| Homework Management routes
+|--------------------------------------------------------------------------
+| Add inside the existing authenticated route group in routes/web.php.
+| If your group already applies permission:ACADEMICS.VIEW, do not duplicate
+| that middleware on these routes.
+*/
+use App\Http\Controllers\HomeworkController;
+
+Route::middleware(['auth', 'permission:ACADEMICS.VIEW'])->group(function () {
+    Route::get('/homework', [HomeworkController::class, 'index'])->name('homework.index');
+    Route::get('/homework/create', [HomeworkController::class, 'create'])
+        ->middleware('permission:ACADEMICS.CREATE')->name('homework.create');
+    Route::post('/homework', [HomeworkController::class, 'store'])
+        ->middleware('permission:ACADEMICS.CREATE')->name('homework.store');
+    Route::get('/homework/{homework}', [HomeworkController::class, 'show'])->name('homework.show');
+    Route::get('/homework/{homework}/edit', [HomeworkController::class, 'edit'])
+        ->middleware('permission:ACADEMICS.UPDATE')->name('homework.edit');
+    Route::put('/homework/{homework}', [HomeworkController::class, 'update'])
+        ->middleware('permission:ACADEMICS.UPDATE')->name('homework.update');
+    Route::patch('/homework/submissions/{submission}/review', [HomeworkController::class, 'review'])
+        ->middleware('permission:ACADEMICS.UPDATE')->name('homework.submissions.review');
+    Route::delete('/homework/{homework}', [HomeworkController::class, 'destroy'])
+        ->middleware('permission:ACADEMICS.DELETE')->name('homework.destroy');
+});
+
+use App\Http\Controllers\AssignmentController;
+use App\Http\Controllers\StudyMaterialController;
+use App\Http\Controllers\QuestionBankController;
+
+/*
+| Add these routes inside your existing authenticated route group.
+| Keep your already-working Homework routes unchanged.
+*/
+
+Route::middleware(['auth', 'permission:ACADEMICS.VIEW'])->group(function () {
+    // Screen 21 – Assignments
+    Route::resource('assignments', AssignmentController::class);
+    Route::get('assignments/{assignment}/submissions', [AssignmentController::class, 'submissions'])
+        ->name('assignments.submissions');
+    Route::post('assignments/{assignment}/submissions/{submission}/review', [AssignmentController::class, 'review'])
+        ->name('assignments.submissions.review');
+
+    // Screen 22 – Study Material
+    Route::resource('study-materials', StudyMaterialController::class);
+
+    // Screen 24 – Question Bank
+    Route::resource('question-bank', QuestionBankController::class);
+    Route::post('question-bank/{question}/toggle', [QuestionBankController::class, 'toggle'])
+        ->name('question-bank.toggle');
+});
+
+
+/*
+|--------------------------------------------------------------------------
+| EXAMINATION MANAGEMENT - SCREEN 23
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware('auth')->group(function () {
+
+    // View examination directory and details
+    Route::middleware('permission:EXAMINATIONS.VIEW')->group(function () {
+
+        Route::get('/examinations', [
+            \App\Http\Controllers\ExaminationController::class,
+            'index'
+        ])->name('examinations.index');
+
+        Route::get('/examinations/{examination}', [
+            \App\Http\Controllers\ExaminationController::class,
+            'show'
+        ])->name('examinations.show');
+    });
+
+    // Create examination
+    Route::middleware('permission:EXAMINATIONS.CREATE')->group(function () {
+
+        Route::get('/examinations/create', [
+            \App\Http\Controllers\ExaminationController::class,
+            'create'
+        ])->name('examinations.create');
+
+        Route::post('/examinations', [
+            \App\Http\Controllers\ExaminationController::class,
+            'store'
+        ])->name('examinations.store');
+    });
+
+    // Update examination
+    Route::middleware('permission:EXAMINATIONS.UPDATE')->group(function () {
+
+        Route::get('/examinations/{examination}/edit', [
+            \App\Http\Controllers\ExaminationController::class,
+            'edit'
+        ])->name('examinations.edit');
+
+        Route::put('/examinations/{examination}', [
+            \App\Http\Controllers\ExaminationController::class,
+            'update'
+        ])->name('examinations.update');
+    });
+
+    // Publish examination
+    Route::post('/examinations/{examination}/publish', [
+        \App\Http\Controllers\ExaminationController::class,
+        'publish'
+    ])->middleware('permission:EXAMINATIONS.PUBLISH')
+      ->name('examinations.publish');
+
+    // Delete examination
+    Route::delete('/examinations/{examination}', [
+        \App\Http\Controllers\ExaminationController::class,
+        'destroy'
+    ])->middleware('permission:EXAMINATIONS.DELETE')
+      ->name('examinations.destroy');
 });

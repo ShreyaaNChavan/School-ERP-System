@@ -1,4 +1,3 @@
-
 @extends('layouts.schoolnexa')
 
 @section('content')
@@ -206,29 +205,43 @@
         color: #92400E;
     }
 
+    /* STANDARD DIRECTORY ACTION BUTTONS */
     .stf-actions {
         display: flex;
         align-items: center;
-        gap: 7px;
-        flex-wrap: wrap;
+        gap: 8px;
+        flex-wrap: nowrap;
+    }
+
+    .stf-actions form {
+        display: inline-flex;
+        margin: 0;
     }
 
     .stf-action {
         display: inline-flex;
         align-items: center;
-        padding: 7px 9px;
-        border-radius: 7px;
+        justify-content: center;
+        min-height: 40px;
+        padding: 0 12px;
         border: 1px solid #CBD5E1;
-        color: #123B5D;
-        font-size: 11px;
-        font-weight: 600;
-        text-decoration: none;
+        border-radius: 9px;
         background: #fff;
+        color: #123B5D;
+        font: 600 13px 'Inter', sans-serif;
+        text-decoration: none;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: .2s;
     }
 
     .stf-action:hover {
-        background: #F1F5F9;
-        color: #176B87;
+        background: #F8FAFC;
+        color: #123B5D;
+    }
+
+    .stf-action-danger {
+        color: #DC2626;
     }
 
     .stf-empty {
@@ -534,7 +547,10 @@
                                             @csrf
                                             @method('DELETE')
 
-                                            <button type="submit" class="stf-action">
+                                            <button
+                                                type="submit"
+                                                class="stf-action stf-action-danger"
+                                            >
                                                 Delete
                                             </button>
                                         </form>

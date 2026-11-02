@@ -163,8 +163,35 @@
 .cu-status.draft{background:#FEF3C7;color:#92400E}
 .cu-status.published{background:#DCFCE7;color:#166534}
 .cu-status.archived{background:#E2E8F0;color:#475569}
-.cu-actions{display:flex;gap:10px;white-space:nowrap}
-.cu-actions a{font-size:12px;font-weight:600;color:#176B87;text-decoration:none}
+.cu-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+}
+
+.cu-actions a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 0 12px;
+    border: 1px solid #CBD5E1;
+    border-radius: 9px;
+    background: #fff;
+    color: #123B5D;
+    font: 600 13px 'Inter', sans-serif;
+    text-decoration: none;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .2s ease;
+}
+
+.cu-actions a:hover {
+    background: #F8FAFC;
+    color: #123B5D;
+}
 .cu-empty{text-align:center;padding:35px!important;color:#64748B!important}
 .cu-pagination{margin-top:18px}
 .cu-alert{padding:12px 15px;border-radius:9px;margin-bottom:17px;font-size:13px}
