@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\AcademicYear;
 use App\Models\Examination;
-use App\Models\ExamSubject;
 use App\Models\School;
 use App\Models\SchoolClass;
 use App\Models\Section;
@@ -13,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Carbon\Carbon;
 
 class ExaminationController extends Controller
 {
@@ -35,17 +35,17 @@ class ExaminationController extends Controller
 
         $query->when(
             $request->filled('academic_year_id'),
-            fn ($q) => $q->where('academic_year_id', $request->academic_year_id)
+            fn($q) => $q->where('academic_year_id', $request->academic_year_id)
         );
 
         $query->when(
             $request->filled('school_id'),
-            fn ($q) => $q->where('school_id', $request->school_id)
+            fn($q) => $q->where('school_id', $request->school_id)
         );
 
         $query->when(
             $request->filled('status'),
-            fn ($q) => $q->where('status', $request->status)
+            fn($q) => $q->where('status', $request->status)
         );
 
         $examinations = $query
@@ -82,13 +82,15 @@ class ExaminationController extends Controller
     }
 
     /**
-     * Store a new examination and its subject schedule.
+     * Store examination and subject schedules.
      */
     public function store(Request $request)
     {
         $data = $this->validatedData($request);
 
-        $academicYear = AcademicYear::findOrFail($data['academic_year_id']);
+        $academicYear = AcademicYear::findOrFail(
+            $data['academic_year_id']
+        );
 
         abort_unless(
             (int) $academicYear->school_id === (int) $data['school_id'],
@@ -98,7 +100,15 @@ class ExaminationController extends Controller
 
         $this->validateSubjectSchedule($data['exam_subjects']);
 
+        if (
+            $data['status'] === 'published' &&
+            !auth()->user()->hasPermission('EXAMINATIONS.PUBLISH')
+        ) {
+            abort(403, 'You do not have permission to publish examinations.');
+        }
+
         $examination = DB::transaction(function () use ($data) {
+
             $examination = Examination::create([
                 'school_id' => $data['school_id'],
                 'academic_year_id' => $data['academic_year_id'],
@@ -123,7 +133,7 @@ class ExaminationController extends Controller
     }
 
     /**
-     * Show examination details and complete schedule.
+     * Show examination details and schedule.
      */
     public function show(Examination $examination)
     {
@@ -152,7 +162,7 @@ class ExaminationController extends Controller
     }
 
     /**
-     * Update examination and its subject schedule.
+     * Update examination and subject schedules.
      */
     public function update(Request $request, Examination $examination)
     {
@@ -164,7 +174,9 @@ class ExaminationController extends Controller
 
         $data = $this->validatedData($request);
 
-        $academicYear = AcademicYear::findOrFail($data['academic_year_id']);
+        $academicYear = AcademicYear::findOrFail(
+            $data['academic_year_id']
+        );
 
         abort_unless(
             (int) $academicYear->school_id === (int) $data['school_id'],
@@ -174,7 +186,16 @@ class ExaminationController extends Controller
 
         $this->validateSubjectSchedule($data['exam_subjects']);
 
+        if (
+            $data['status'] === 'published' &&
+            $examination->status !== 'published' &&
+            !auth()->user()->hasPermission('EXAMINATIONS.PUBLISH')
+        ) {
+            abort(403, 'You do not have permission to publish examinations.');
+        }
+
         DB::transaction(function () use ($data, $examination) {
+
             $examination->update([
                 'school_id' => $data['school_id'],
                 'academic_year_id' => $data['academic_year_id'],
@@ -186,7 +207,6 @@ class ExaminationController extends Controller
                 'instructions' => $data['instructions'] ?? null,
             ]);
 
-            // Replace the existing schedule with the submitted schedule.
             $examination->examSubjects()->delete();
 
             foreach ($data['exam_subjects'] as $subject) {
@@ -200,7 +220,7 @@ class ExaminationController extends Controller
     }
 
     /**
-     * Publish an examination.
+     * Publish examination.
      */
     public function publish(Examination $examination)
     {
@@ -211,16 +231,46 @@ class ExaminationController extends Controller
         );
 
         if (!$examination->examSubjects()->exists()) {
-            return back()->with('error', 'Add at least one subject before publishing.');
+            return back()->with(
+                'error',
+                'Add at least one subject before publishing.'
+            );
         }
 
-        $examination->update(['status' => 'published']);
+        // Verify subject dates are within the examination period.
+        $invalidSchedule = $examination->examSubjects()
+            ->where(function ($query) use ($examination) {
+                $query->whereDate(
+                    'exam_date',
+                    '<',
+                    $examination->start_date
+                )->orWhereDate(
+                        'exam_date',
+                        '>',
+                        $examination->end_date
+                    );
+            })
+            ->exists();
 
-        return back()->with('success', 'Examination published successfully.');
+        if ($invalidSchedule) {
+            return back()->with(
+                'error',
+                'One or more subject dates are outside the examination period.'
+            );
+        }
+
+        $examination->update([
+            'status' => 'published',
+        ]);
+
+        return back()->with(
+            'success',
+            'Examination published successfully.'
+        );
     }
 
     /**
-     * Delete an examination.
+     * Delete examination.
      */
     public function destroy(Examination $examination)
     {
@@ -235,14 +285,15 @@ class ExaminationController extends Controller
     }
 
     /**
-     * Fetch data required by create/edit forms.
+     * Form dropdown data.
      */
     private function formData(): array
     {
         return [
             'schools' => School::orderBy('name')->get(),
 
-            'academicYears' => AcademicYear::orderByDesc('start_date')->get(),
+            'academicYears' => AcademicYear::orderByDesc('start_date')
+                ->get(),
 
             'classes' => SchoolClass::where('is_active', true)
                 ->orderBy('name')
@@ -260,11 +311,32 @@ class ExaminationController extends Controller
     }
 
     /**
-     * Validate examination and subject schedule input.
+     * Validate examination and subject schedule.
      */
     private function validatedData(Request $request): array
     {
+        // Normalize exam times to 24-hour H:i format.
+        $examSubjects = $request->input('exam_subjects', []);
+
+        foreach ($examSubjects as $index => $subject) {
+            foreach (['start_time', 'end_time'] as $field) {
+                if (!empty($subject[$field])) {
+                    try {
+                        $examSubjects[$index][$field] = Carbon::parse(
+                            $subject[$field]
+                        )->format('H:i');
+                    } catch (\Throwable $e) {
+                        // Leave invalid values unchanged so validation catches them.
+                    }
+                }
+            }
+        }
+
+        $request->merge([
+            'exam_subjects' => $examSubjects,
+        ]);
         return $request->validate([
+
             'school_id' => [
                 'required',
                 'exists:schools,id',
@@ -344,7 +416,6 @@ class ExaminationController extends Controller
             'exam_subjects.*.end_time' => [
                 'required',
                 'date_format:H:i',
-                'after:exam_subjects.*.start_time',
             ],
 
             'exam_subjects.*.maximum_marks' => [
@@ -358,7 +429,6 @@ class ExaminationController extends Controller
                 'required',
                 'numeric',
                 'min:0',
-                'lte:exam_subjects.*.maximum_marks',
             ],
 
             'exam_subjects.*.room_number' => [
@@ -375,9 +445,9 @@ class ExaminationController extends Controller
     private function validateSubjectSchedule(array $subjects): void
     {
         foreach ($subjects as $index => $item) {
-            $section = Section::with('schoolClass')->findOrFail(
-                $item['section_id']
-            );
+
+            $section = Section::with('schoolClass')
+                ->findOrFail($item['section_id']);
 
             if (
                 (int) $section->school_class_id !==
@@ -398,6 +468,23 @@ class ExaminationController extends Controller
                 throw ValidationException::withMessages([
                     "exam_subjects.{$index}.subject_id" =>
                         'The selected subject is not assigned to this class.',
+                ]);
+            }
+
+            if (
+                (float) $item['passing_marks'] >
+                (float) $item['maximum_marks']
+            ) {
+                throw ValidationException::withMessages([
+                    "exam_subjects.{$index}.passing_marks" =>
+                        'Passing marks cannot exceed maximum marks.',
+                ]);
+            }
+
+            if ($item['end_time'] <= $item['start_time']) {
+                throw ValidationException::withMessages([
+                    "exam_subjects.{$index}.end_time" =>
+                        'End time must be later than start time.',
                 ]);
             }
         }

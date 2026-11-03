@@ -14,9 +14,11 @@ use App\Http\Controllers\StaffController;
 use App\Http\Controllers\EmployeeProfileController;
 use App\Http\Controllers\ClassSectionController;
 use App\Http\Controllers\SubjectController;
-
+use App\Http\Controllers\MarksEntryController;
+use App\Http\Controllers\AdmissionApplicationController;
 use App\Http\Controllers\CurriculumController;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\FeeController;
 
 // Home
 Route::get('/', function () {
@@ -584,23 +586,16 @@ Route::middleware(['auth', 'permission:ACADEMICS.VIEW'])->group(function () {
 
 Route::middleware('auth')->group(function () {
 
-    // View examination directory and details
+    // Examination directory
     Route::middleware('permission:EXAMINATIONS.VIEW')->group(function () {
-
         Route::get('/examinations', [
             \App\Http\Controllers\ExaminationController::class,
             'index'
         ])->name('examinations.index');
-
-        Route::get('/examinations/{examination}', [
-            \App\Http\Controllers\ExaminationController::class,
-            'show'
-        ])->name('examinations.show');
     });
 
-    // Create examination
+    // Create - MUST come before {examination}
     Route::middleware('permission:EXAMINATIONS.CREATE')->group(function () {
-
         Route::get('/examinations/create', [
             \App\Http\Controllers\ExaminationController::class,
             'create'
@@ -612,9 +607,8 @@ Route::middleware('auth')->group(function () {
         ])->name('examinations.store');
     });
 
-    // Update examination
+    // Edit
     Route::middleware('permission:EXAMINATIONS.UPDATE')->group(function () {
-
         Route::get('/examinations/{examination}/edit', [
             \App\Http\Controllers\ExaminationController::class,
             'edit'
@@ -626,17 +620,229 @@ Route::middleware('auth')->group(function () {
         ])->name('examinations.update');
     });
 
-    // Publish examination
+    // Publish
     Route::post('/examinations/{examination}/publish', [
         \App\Http\Controllers\ExaminationController::class,
         'publish'
     ])->middleware('permission:EXAMINATIONS.PUBLISH')
       ->name('examinations.publish');
 
-    // Delete examination
+    // Delete
     Route::delete('/examinations/{examination}', [
         \App\Http\Controllers\ExaminationController::class,
         'destroy'
     ])->middleware('permission:EXAMINATIONS.DELETE')
       ->name('examinations.destroy');
+
+    // Show - keep dynamic route after static routes
+    Route::get('/examinations/{examination}', [
+        \App\Http\Controllers\ExaminationController::class,
+        'show'
+    ])->middleware('permission:EXAMINATIONS.VIEW')
+      ->name('examinations.show');
+});
+
+/*
+|--------------------------------------------------------------------------
+| MARKS ENTRY - SCREEN 25
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware(['auth'])->group(function () {
+
+    // Marks Entry Directory
+    Route::middleware('permission:ACADEMICS.VIEW')->group(function () {
+        Route::get('/marks-entry', [
+            \App\Http\Controllers\MarksEntryController::class,
+            'index'
+        ])->name('marks-entry.index');
+
+        // Individual examination subject marks sheet
+        Route::get('/marks-entry/{examSubject}', [
+            \App\Http\Controllers\MarksEntryController::class,
+            'show'
+        ])->name('marks-entry.show');
+    });
+
+    // Save marks
+    Route::post('/marks-entry/{examSubject}/save', [
+        \App\Http\Controllers\MarksEntryController::class,
+        'save'
+    ])->middleware('permission:ACADEMICS.CREATE')
+      ->name('marks-entry.save');
+
+    // Publish marks sheet
+    Route::post('/marks-entry/{examSubject}/publish', [
+        \App\Http\Controllers\MarksEntryController::class,
+        'publish'
+    ])->middleware('permission:EXAMINATIONS.PUBLISH')
+      ->name('marks-entry.publish');
+});
+
+
+use App\Http\Controllers\ReportCardController;
+
+Route::middleware(['auth'])->group(function () {
+
+    Route::middleware('permission:ACADEMICS.VIEW')->group(function () {
+        Route::get('/report-cards', [ReportCardController::class, 'index'])
+            ->name('report-cards.index');
+
+        Route::get('/report-cards/{reportCard}', [ReportCardController::class, 'show'])
+            ->name('report-cards.show');
+    });
+
+    Route::post('/report-cards/generate', [ReportCardController::class, 'generate'])
+        ->middleware('permission:ACADEMICS.CREATE')
+        ->name('report-cards.generate');
+
+    Route::post('/report-cards/publish-section', [ReportCardController::class, 'publishSection'])
+        ->middleware('permission:EXAMINATIONS.PUBLISH')
+        ->name('report-cards.publish-section');
+
+    Route::post('/report-cards/{reportCard}/publish', [ReportCardController::class, 'publish'])
+        ->middleware('permission:EXAMINATIONS.PUBLISH')
+        ->name('report-cards.publish');
+});
+
+
+use App\Http\Controllers\AdmissionCrmController;
+
+Route::prefix('admission-crm')
+    ->name('admission-crm.')
+    ->group(function () {
+
+        Route::get('/', [AdmissionCrmController::class, 'index'])
+            ->middleware('permission:ADMISSIONS.VIEW')
+            ->name('index');
+
+        Route::get('/create', [AdmissionCrmController::class, 'create'])
+            ->middleware('permission:ADMISSIONS.CREATE')
+            ->name('create');
+
+        Route::post('/', [AdmissionCrmController::class, 'store'])
+            ->middleware('permission:ADMISSIONS.CREATE')
+            ->name('store');
+
+        Route::get('/{admissionLead}', [AdmissionCrmController::class, 'show'])
+            ->middleware('permission:ADMISSIONS.VIEW')
+            ->name('show');
+
+        Route::get('/{admissionLead}/edit', [AdmissionCrmController::class, 'edit'])
+            ->middleware('permission:ADMISSIONS.UPDATE')
+            ->name('edit');
+
+        Route::put('/{admissionLead}', [AdmissionCrmController::class, 'update'])
+            ->middleware('permission:ADMISSIONS.UPDATE')
+            ->name('update');
+
+        Route::patch('/{admissionLead}/stage', [AdmissionCrmController::class, 'updateStage'])
+            ->middleware('permission:ADMISSIONS.UPDATE')
+            ->name('stage');
+
+        Route::post('/{admissionLead}/followups', [AdmissionCrmController::class, 'storeFollowup'])
+            ->middleware('permission:ADMISSIONS.CREATE')
+            ->name('followups.store');
+
+        Route::patch('/followups/{followup}/complete', [AdmissionCrmController::class, 'completeFollowup'])
+            ->middleware('permission:ADMISSIONS.UPDATE')
+            ->name('followups.complete');
+
+        Route::delete('/{admissionLead}', [AdmissionCrmController::class, 'destroy'])
+            ->middleware('permission:ADMISSIONS.DELETE')
+            ->name('destroy');
+    });
+
+
+Route::prefix('admission-applications')
+    ->name('admission-applications.')
+    ->group(function () {
+
+        Route::get('/', [AdmissionApplicationController::class, 'index'])
+            ->middleware('permission:ADMISSIONS.VIEW')
+            ->name('index');
+
+        Route::get('/create', [AdmissionApplicationController::class, 'create'])
+            ->middleware('permission:ADMISSIONS.CREATE')
+            ->name('create');
+
+        Route::post('/', [AdmissionApplicationController::class, 'store'])
+            ->middleware('permission:ADMISSIONS.CREATE')
+            ->name('store');
+
+        Route::get('/{admissionApplication}', [AdmissionApplicationController::class, 'show'])
+            ->middleware('permission:ADMISSIONS.VIEW')
+            ->name('show');
+
+        Route::patch('/{admissionApplication}/status', [AdmissionApplicationController::class, 'updateStatus'])
+            ->middleware('permission:ADMISSIONS.UPDATE')
+            ->name('status');
+
+        // Document upload
+        Route::post('/{admissionApplication}/documents', [
+            AdmissionApplicationController::class,
+            'uploadDocument'
+        ])->middleware('permission:ADMISSIONS.UPDATE')
+          ->name('documents.upload');
+
+        // Secure document download
+        Route::get('/{admissionApplication}/documents/{documentIndex}', [
+            AdmissionApplicationController::class,
+            'downloadDocument'
+        ])->middleware('permission:ADMISSIONS.VIEW')
+                  ->whereNumber('documentIndex')
+        ->name('documents.download');
+
+        // Assessment recording
+        Route::post('/{admissionApplication}/assessments', [
+            AdmissionApplicationController::class,
+            'storeAssessment'
+        ])->middleware('permission:ADMISSIONS.UPDATE')
+          ->name('assessments.store');
+
+                  // Admission decision
+        Route::post('/{admissionApplication}/decision', [
+            AdmissionApplicationController::class,
+            'storeDecision'
+        ])->middleware('permission:ADMISSIONS.UPDATE')
+          ->name('decision.store');
+    });
+
+use App\Http\Controllers\CounsellingController;
+
+Route::prefix('counselling')
+    ->name('counselling.')
+    ->controller(CounsellingController::class)
+    ->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/create', 'create')->name('create');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{counselling}', 'show')->name('show');
+        Route::get('/{counselling}/edit', 'edit')->name('edit');
+        Route::put('/{counselling}', 'update')->name('update');
+        Route::patch('/{counselling}/status', 'updateStatus')->name('status');
+        Route::delete('/{counselling}', 'destroy')->name('destroy');
+    });
+
+
+// Add these routes INSIDE the existing authenticated route group in routes/web.php.
+Route::prefix('fees')->name('fees.')->controller(FeeController::class)->group(function () {
+    Route::get('/', 'dashboard')->name('dashboard');
+
+    Route::get('/fee-types', 'feeTypesIndex')->name('types.index');
+    Route::post('/fee-types', 'feeTypesStore')->name('types.store');
+    Route::patch('/fee-types/{feeType}/toggle', 'feeTypesToggle')->name('types.toggle');
+
+    Route::get('/invoices', 'invoiceIndex')->name('invoices.index');
+    Route::get('/invoices/create', 'invoiceCreate')->name('invoices.create');
+    Route::post('/invoices', 'invoiceStore')->name('invoices.store');
+    Route::get('/invoices/{invoice}', 'invoiceShow')->name('invoices.show');
+    Route::get('/invoices/{invoice}/edit', 'invoiceEdit')->name('invoices.edit');
+    Route::put('/invoices/{invoice}', 'invoiceUpdate')->name('invoices.update');
+    Route::delete('/invoices/{invoice}', 'invoiceDelete')->name('invoices.destroy');
+
+    Route::get('/payments', 'paymentIndex')->name('payments.index');
+    Route::get('/payments/create', 'paymentCreate')->name('payments.create');
+    Route::post('/payments', 'paymentStore')->name('payments.store');
+    Route::get('/payments/{payment}/receipt', 'receipt')->name('payments.receipt');
 });
