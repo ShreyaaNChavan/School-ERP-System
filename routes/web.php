@@ -19,6 +19,7 @@ use App\Http\Controllers\AdmissionApplicationController;
 use App\Http\Controllers\CurriculumController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\FeeController;
+use App\Http\Controllers\Transport\TransportController;
 
 // Home
 Route::get('/', function () {
@@ -869,4 +870,16 @@ Route::middleware(['auth'])->prefix('hr')->name('hr.')->group(function () {
     Route::post('/payroll/periods/{period}/generate',[HRController::class,'generatePayroll'])->name('payroll.generate');
     Route::patch('/payroll/records/{record}',[HRController::class,'updatePayrollRecord'])->name('payroll.records.update');
     Route::get('/payroll/records/{record}/payslip',[HRController::class,'payslip'])->name('payroll.payslip');
+});
+
+Route::middleware(['auth'])->prefix('transport')->name('transport.')->group(function(){
+Route::get('/',[TransportController::class,'dashboard'])->name('dashboard');
+Route::get('/vehicles',[TransportController::class,'vehicles'])->name('vehicles'); Route::post('/vehicles',[TransportController::class,'storeVehicle'])->name('vehicles.store');
+Route::get('/vehicles/{vehicle}',[TransportController::class,'vehicle'])->name('vehicles.show'); Route::put('/vehicles/{vehicle}',[TransportController::class,'updateVehicle'])->name('vehicles.update');
+Route::get('/routes',[TransportController::class,'routes'])->name('routes'); Route::post('/routes',[TransportController::class,'storeRoute'])->name('routes.store');
+Route::get('/routes/{route}',[TransportController::class,'routeShow'])->name('routes.show'); Route::post('/routes/{route}/stops',[TransportController::class,'storeStop'])->name('stops.store'); Route::delete('/stops/{stop}',[TransportController::class,'deleteStop'])->name('stops.delete');
+Route::post('/vehicles/{vehicle}/driver',[TransportController::class,'assignDriver'])->name('drivers.assign'); Route::get('/tracking',[TransportController::class,'tracking'])->name('tracking');
+Route::patch('/driver-assignments/{assignment}/unassign',
+    [TransportController::class, 'unassignDriver']
+)->name('drivers.unassign');
 });
