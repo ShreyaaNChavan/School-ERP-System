@@ -846,3 +846,27 @@ Route::prefix('fees')->name('fees.')->controller(FeeController::class)->group(fu
     Route::post('/payments', 'paymentStore')->name('payments.store');
     Route::get('/payments/{payment}/receipt', 'receipt')->name('payments.receipt');
 });
+use App\Http\Controllers\HR\HRController;
+
+Route::middleware(['auth'])->prefix('hr')->name('hr.')->group(function () {
+    Route::get('/', [HRController::class,'dashboard'])->name('dashboard');
+    Route::get('/recruitment',[HRController::class,'recruitment'])->name('recruitment');
+    Route::post('/recruitment/jobs',[HRController::class,'storeJob'])->name('jobs.store');
+    Route::get('/recruitment/jobs/{job}',[HRController::class,'job'])->name('jobs.show');
+    Route::post('/recruitment/jobs/{job}/applications',[HRController::class,'storeApplication'])->name('applications.store');
+    Route::patch('/applications/{application}',[HRController::class,'updateApplication'])->name('applications.update');
+    Route::get('/attendance',[HRController::class,'attendance'])->name('attendance');
+    Route::post('/attendance',[HRController::class,'storeAttendance'])->name('attendance.store');
+    Route::get('/attendance-rules',[HRController::class,'attendanceRules'])->name('attendance-rules');
+    Route::post('/attendance-rules',[HRController::class,'storeAttendanceRule'])->name('attendance-rules.store');
+    Route::get('/leave',[HRController::class,'leave'])->name('leave');
+    Route::post('/leave/types',[HRController::class,'storeLeaveType'])->name('leave.types.store');
+    Route::post('/leave/requests',[HRController::class,'storeLeaveRequest'])->name('leave.requests.store');
+    Route::patch('/leave/requests/{leaveRequest}',[HRController::class,'reviewLeaveRequest'])->name('leave.requests.review');
+    Route::get('/payroll',[HRController::class,'payroll'])->name('payroll');
+    Route::post('/payroll/periods',[HRController::class,'storePayrollPeriod'])->name('payroll.periods.store');
+    Route::get('/payroll/periods/{period}',[HRController::class,'payrollPeriod'])->name('payroll.periods.show');
+    Route::post('/payroll/periods/{period}/generate',[HRController::class,'generatePayroll'])->name('payroll.generate');
+    Route::patch('/payroll/records/{record}',[HRController::class,'updatePayrollRecord'])->name('payroll.records.update');
+    Route::get('/payroll/records/{record}/payslip',[HRController::class,'payslip'])->name('payroll.payslip');
+});
