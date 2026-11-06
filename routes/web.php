@@ -1,4 +1,3 @@
-
 <?php
 
 use Illuminate\Support\Facades\Route;
@@ -20,6 +19,7 @@ use App\Http\Controllers\CurriculumController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\FeeController;
 use App\Http\Controllers\Transport\TransportController;
+use App\Http\Controllers\Hostel\HostelController;
 
 // Home
 Route::get('/', function () {
@@ -882,4 +882,17 @@ Route::post('/vehicles/{vehicle}/driver',[TransportController::class,'assignDriv
 Route::patch('/driver-assignments/{assignment}/unassign',
     [TransportController::class, 'unassignDriver']
 )->name('drivers.unassign');
+});
+
+// Merge inside routes/web.php; do not replace existing routes.
+Route::middleware(['auth'])->prefix('hostel')->name('hostel.')->group(function () {
+ Route::get('/',[HostelController::class,'dashboard'])->name('dashboard');
+ Route::get('/list',[HostelController::class,'index'])->name('index'); Route::post('/list',[HostelController::class,'store'])->name('store');
+ Route::get('/rooms',[HostelController::class,'rooms'])->name('rooms'); Route::post('/rooms',[HostelController::class,'storeRoom'])->name('rooms.store'); Route::post('/rooms/{room}/beds',[HostelController::class,'storeBed'])->name('beds.store');
+ Route::get('/room-types',[HostelController::class,'roomTypes'])->name('room-types'); Route::post('/room-types',[HostelController::class,'storeRoomType'])->name('room-types.store');
+ Route::get('/allocations',[HostelController::class,'allocations'])->name('allocations'); Route::post('/allocations',[HostelController::class,'storeAllocation'])->name('allocations.store'); Route::patch('/allocations/{allocation}/close',[HostelController::class,'endAllocation'])->name('allocations.close');
+ Route::get('/fees',[HostelController::class,'fees'])->name('fees'); Route::post('/fees/invoices',[HostelController::class,'storeInvoice'])->name('fees.invoices.store'); Route::post('/fees/invoices/{invoice}/payments',[HostelController::class,'payInvoice'])->name('fees.payments.store');
+ Route::get('/wardens',[HostelController::class,'wardens'])->name('wardens'); Route::post('/wardens',[HostelController::class,'storeWarden'])->name('wardens.store');
+ Route::get('/visitors',[HostelController::class,'visitors'])->name('visitors'); Route::post('/visitors',[HostelController::class,'storeVisitor'])->name('visitors.store'); Route::patch('/visitors/{visitor}/action',[HostelController::class,'visitorAction'])->name('visitors.action');
+ Route::get('/attendance',[HostelController::class,'attendance'])->name('attendance'); Route::post('/attendance',[HostelController::class,'storeAttendance'])->name('attendance.store');
 });

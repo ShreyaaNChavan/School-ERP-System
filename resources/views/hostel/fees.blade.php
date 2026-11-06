@@ -1,0 +1,12 @@
+@extends('layouts.schoolnexa')
+@section('content')
+@include('hostel._style')
+<div class="hst"><div class="hst-head"><div><div class="hst-title">Fees</div><div class="hst-sub">Hostel administration and records</div></div><a class="hst-btn" href="{{ route('hostel.dashboard') }}">Hostel Dashboard</a></div>
+@if(session('success'))<div class="hst-alert">{{ session('success') }}</div>@endif
+@if($errors->any())<div class="hst-card hst-error">@foreach($errors->all() as $error)<div>{{ $error }}</div>@endforeach</div>@endif
+
+<div class="hst-card"><form method="POST" action="{{ route('hostel.fees.invoices.store') }}">@csrf<div class="hst-form"><div class="hst-field"><label>Active allocation</label><select class="hst-input" name="hostel_allocation_id">@foreach($allocations as $a)<option value="{{ $a->id }}">Allocation #{{ $a->id }} / Student #{{ $a->student_id }}</option>@endforeach</select></div><div class="hst-field"><label>Fee head</label><input class="hst-input" name="fee_head" value="Hostel Fee"></div><div class="hst-field"><label>Amount</label><input class="hst-input" type="number" step=".01" name="amount"></div><div class="hst-field"><label>Issued on</label><input class="hst-input" type="date" name="issued_on" value="{{ today()->toDateString() }}"></div><div class="hst-field"><label>Due on</label><input class="hst-input" type="date" name="due_on"></div></div><button class="hst-btn hst-primary" style="margin-top:12px">Generate invoice</button></form></div>
+<div class="hst-card"><table class="hst-table"><tr><th>Invoice</th><th>Allocation</th><th>Amount</th><th>Paid</th><th>Status</th><th>Record payment</th></tr>@forelse($invoices as $i)<tr><td>{{ $i->invoice_number }}</td><td>{{ $i->hostel_allocation_id }}</td><td>{{ $i->amount }}</td><td>{{ $i->paid_amount }}</td><td>{{ $i->status }}</td><td>@if($i->status!=='paid')<form method="POST" action="{{ route('hostel.fees.payments.store',$i->id) }}">@csrf<input class="hst-input" style="width:90px;display:inline" name="amount" type="number" step=".01" placeholder="Amount"><select class="hst-input" style="width:110px;display:inline" name="payment_method"><option>cash</option><option>upi</option><option>card</option><option>bank_transfer</option><option>cheque</option></select><input type="hidden" name="paid_on" value="{{ today()->toDateString() }}"><button class="hst-btn">Pay</button></form>@else Paid @endif</td></tr>@empty<tr><td colspan="6">No invoices.</td></tr>@endforelse</table>{{ $invoices->links() }}</div>
+
+</div>
+@endsection
