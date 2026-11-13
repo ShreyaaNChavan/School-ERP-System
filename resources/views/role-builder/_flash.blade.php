@@ -1,0 +1,2 @@
+@if(session('success'))<div class="rb-alert">{{ session('success') }}</div>@endif
+@if($errors->any())<div class="rb-alert" style="background:#FEF2F2;color:#991B1B">@foreach($errors->all() as $error)<div>{{ $error }}</div>@endforeach</div>@endif

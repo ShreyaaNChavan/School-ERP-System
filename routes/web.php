@@ -20,6 +20,21 @@ use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\FeeController;
 use App\Http\Controllers\Transport\TransportController;
 use App\Http\Controllers\Hostel\HostelController;
+use App\Http\Controllers\Library\LibraryController;
+use App\Http\Controllers\Inventory\InventoryController;
+use App\Http\Controllers\CertificateController;
+use App\Http\Controllers\EventController;
+use App\Http\Controllers\SportController;
+use App\Http\Controllers\ClubController;
+use App\Http\Controllers\AlumniController;
+use App\Http\Controllers\CareerOpportunityController;
+use App\Http\Controllers\CommunicationController;
+use App\Http\Controllers\PtmController;
+use App\Http\Controllers\StudentSupportController;
+use App\Http\Controllers\CaspaIntelligenceController;
+use App\Http\Controllers\ReportsAnalyticsController;
+use App\Http\Controllers\ApprovalCenterController;
+
 
 // Home
 Route::get('/', function () {
@@ -895,4 +910,337 @@ Route::middleware(['auth'])->prefix('hostel')->name('hostel.')->group(function (
  Route::get('/wardens',[HostelController::class,'wardens'])->name('wardens'); Route::post('/wardens',[HostelController::class,'storeWarden'])->name('wardens.store');
  Route::get('/visitors',[HostelController::class,'visitors'])->name('visitors'); Route::post('/visitors',[HostelController::class,'storeVisitor'])->name('visitors.store'); Route::patch('/visitors/{visitor}/action',[HostelController::class,'visitorAction'])->name('visitors.action');
  Route::get('/attendance',[HostelController::class,'attendance'])->name('attendance'); Route::post('/attendance',[HostelController::class,'storeAttendance'])->name('attendance.store');
+});
+
+
+
+
+Route::middleware(['auth'])->group(function () {
+    // LIBRARY
+    Route::prefix('library')->name('library.')->group(function () {
+        Route::get('/', [LibraryController::class, 'dashboard'])->name('dashboard');
+        Route::resource('books', LibraryController::class)->except(['show']);
+        Route::get('/books/{book}', [LibraryController::class, 'showBook'])->name('books.show');
+        Route::post('/books/{book}/copies', [LibraryController::class, 'storeCopy'])->name('copies.store');
+        Route::patch('/copies/{copy}', [LibraryController::class, 'updateCopy'])->name('copies.update');
+        Route::get('/loans', [LibraryController::class, 'loans'])->name('loans.index');
+        Route::get('/issue', [LibraryController::class, 'issueForm'])->name('loans.issue');
+        Route::post('/issue', [LibraryController::class, 'issue'])->name('loans.store');
+        Route::patch('/loans/{loan}/return', [LibraryController::class, 'returnBook'])->name('loans.return');
+    });
+
+    // INVENTORY & ASSETS
+    Route::prefix('inventory')->name('inventory.')->group(function () {
+        Route::get('/', [InventoryController::class, 'dashboard'])->name('dashboard');
+
+        Route::get('/categories', [InventoryController::class, 'categories'])->name('categories.index');
+        Route::post('/categories', [InventoryController::class, 'storeCategory'])->name('categories.store');
+        Route::put('/categories/{category}', [InventoryController::class, 'updateCategory'])->name('categories.update');
+        Route::delete('/categories/{category}', [InventoryController::class, 'destroyCategory'])->name('categories.destroy');
+
+        Route::resource('items', InventoryController::class)->except(['show']);
+        Route::get('/items/{item}', [InventoryController::class, 'showItem'])->name('items.show');
+
+        Route::get('/vendors', [InventoryController::class, 'vendors'])->name('vendors.index');
+        Route::post('/vendors', [InventoryController::class, 'storeVendor'])->name('vendors.store');
+        Route::put('/vendors/{vendor}', [InventoryController::class, 'updateVendor'])->name('vendors.update');
+        Route::delete('/vendors/{vendor}', [InventoryController::class, 'destroyVendor'])->name('vendors.destroy');
+
+        Route::get('/assets', [InventoryController::class, 'assets'])->name('assets.index');
+        Route::get('/assets/create', [InventoryController::class, 'createAsset'])->name('assets.create');
+        Route::post('/assets', [InventoryController::class, 'storeAsset'])->name('assets.store');
+        Route::get('/assets/{asset}/edit', [InventoryController::class, 'editAsset'])->name('assets.edit');
+        Route::put('/assets/{asset}', [InventoryController::class, 'updateAsset'])->name('assets.update');
+        Route::delete('/assets/{asset}', [InventoryController::class, 'destroyAsset'])->name('assets.destroy');
+
+        Route::get('/purchase-orders', [InventoryController::class, 'purchaseOrders'])->name('purchase-orders.index');
+        Route::get('/purchase-orders/create', [InventoryController::class, 'createPurchaseOrder'])->name('purchase-orders.create');
+        Route::post('/purchase-orders', [InventoryController::class, 'storePurchaseOrder'])->name('purchase-orders.store');
+        Route::get('/purchase-orders/{order}', [InventoryController::class, 'showPurchaseOrder'])->name('purchase-orders.show');
+        Route::patch('/purchase-orders/{order}/status', [InventoryController::class, 'updatePurchaseOrderStatus'])->name('purchase-orders.status');
+    });
+});
+
+// CERTIFICATE MANAGEMENT — SCREENS 50 & 51
+
+Route::prefix('certificates')->name('certificates.')->group(function () {
+
+    // Public certificate verification
+    Route::get('/verify', [CertificateController::class, 'verifyForm'])
+        ->name('verify');
+
+    Route::get('/verify/{certificateNumber}', [CertificateController::class, 'verify'])
+        ->name('verify.result');
+
+    // Authenticated certificate management
+    Route::middleware(['auth'])->group(function () {
+
+        Route::get('/', [CertificateController::class, 'dashboard'])
+            ->name('dashboard');
+
+        Route::get('/history', [CertificateController::class, 'index'])
+            ->name('index');
+
+        Route::get('/create', [CertificateController::class, 'create'])
+            ->name('create');
+
+        Route::post('/', [CertificateController::class, 'store'])
+            ->name('store');
+
+        Route::get('/{certificate}/pdf', [CertificateController::class, 'download'])
+            ->name('download');
+
+        Route::get('/{certificate}', [CertificateController::class, 'show'])
+            ->name('show');
+    });
+});
+
+
+// EVENTS MANAGEMENT
+Route::prefix('events')->name('events.')->controller(EventController::class)->group(function () {
+    Route::get('/', 'dashboard')->name('dashboard');
+    Route::get('/list', 'index')->name('index');
+    Route::get('/create', 'create')->name('create');
+    Route::post('/', 'store')->name('store');
+
+    Route::get('/{event}/edit', 'edit')->name('edit');
+    Route::put('/{event}', 'update')->name('update');
+    Route::delete('/{event}', 'destroy')->name('destroy');
+    Route::get('/{event}', 'show')->name('show');
+});
+
+
+
+Route::middleware(['auth'])->group(function () {
+    foreach ([
+        'sports' => SportController::class,
+        'clubs' => ClubController::class,
+        'alumni' => AlumniController::class,
+        'career' => CareerOpportunityController::class,
+    ] as $prefix => $controller) {
+        Route::prefix($prefix)->name($prefix.'.')->controller($controller)->group(function () {
+            Route::get('/', 'dashboard')->name('dashboard');
+            Route::get('/list', 'index')->name('index');
+            Route::get('/create', 'create')->name('create');
+            Route::post('/', 'store')->name('store');
+            Route::get('/{id}/edit', 'edit')->whereNumber('id')->name('edit');
+            Route::put('/{id}', 'update')->whereNumber('id')->name('update');
+            Route::delete('/{id}', 'destroy')->whereNumber('id')->name('destroy');
+            Route::get('/{id}', 'show')->whereNumber('id')->name('show');
+        });
+    }
+});
+
+
+
+
+Route::prefix('communication')->name('communication.')->controller(CommunicationController::class)->group(function () {
+    Route::get('/', 'dashboard')->name('dashboard');
+    Route::get('/announcements', 'index')->name('index');
+    Route::get('/announcements/create', 'create')->name('create');
+    Route::post('/announcements', 'store')->name('store');
+    Route::get('/announcements/{id}', 'show')->whereNumber('id')->name('show');
+    Route::get('/announcements/{id}/edit', 'edit')->whereNumber('id')->name('edit');
+    Route::put('/announcements/{id}', 'update')->whereNumber('id')->name('update');
+    Route::post('/announcements/{id}/publish', 'publish')->whereNumber('id')->name('publish');
+    Route::post('/announcements/{id}/archive', 'archive')->whereNumber('id')->name('archive');
+    Route::delete('/announcements/{id}', 'destroy')->whereNumber('id')->name('destroy');
+
+    Route::get('/messages', 'messages')->name('messages');
+    Route::get('/messages/compose', 'compose')->name('compose');
+    Route::post('/messages', 'sendMessage')->name('messages.send');
+    Route::get('/messages/{id}', 'messageShow')->whereNumber('id')->name('message.show');
+    Route::post('/messages/{id}/reply', 'reply')->whereNumber('id')->name('message.reply');
+
+    Route::get('/templates', 'templates')->name('templates');
+    Route::post('/templates', 'storeTemplate')->name('templates.store');
+    Route::get('/deliveries', 'deliveries')->name('deliveries');
+});
+
+
+Route::prefix('ptm')->name('ptm.')->controller(PtmController::class)->group(function () {
+    Route::get('/', 'dashboard')->name('dashboard');
+    Route::get('/history', 'index')->name('index');
+    Route::get('/create', 'create')->name('create');
+    Route::post('/', 'store')->name('store');
+    Route::get('/{id}/edit', 'edit')->whereNumber('id')->name('edit');
+    Route::put('/{id}', 'update')->whereNumber('id')->name('update');
+    Route::patch('/{id}/status', 'status')->whereNumber('id')->name('status');
+    Route::delete('/{id}', 'destroy')->whereNumber('id')->name('destroy');
+    Route::get('/{id}', 'show')->whereNumber('id')->name('show');
+});
+
+
+// Add this group inside your existing authenticated route group in routes/web.php.
+Route::prefix('student-support')->name('student-support.')->controller(StudentSupportController::class)->group(function () {
+    Route::get('/', 'dashboard')->name('dashboard');
+    Route::get('/{module}', 'index')->name('index');
+    Route::get('/{module}/create', 'create')->name('create');
+    Route::post('/{module}', 'store')->name('store');
+    Route::get('/{module}/{id}', 'show')->whereNumber('id')->name('show');
+    Route::patch('/{module}/{id}/status', 'updateStatus')->whereNumber('id')->name('status');
+    Route::post('/{module}/{id}/notes', 'addNote')->whereNumber('id')->name('notes');
+});
+
+
+
+
+// //Add inside routes/web.php. All screens are authenticated; add your permission middleware per route before production.
+//  Route::middleware(['auth'])->prefix('caspa')->name('caspa.')->group(function () {
+//      Route::get('/{screen?}', [CaspaIntelligenceController::class,'index'])->defaults('screen','chat')->where('screen','[a-z-]+')->name('workspace');
+//      Route::post('/ai/respond', [CaspaIntelligenceController::class,'chat'])->name('ai.respond');
+//      Route::post('/{screen}/records', [CaspaIntelligenceController::class,'store'])->where('screen','[a-z-]+')->name('records.store');
+//      Route::post('/{screen}/settings', [CaspaIntelligenceController::class,'saveRecord'])->where('screen','[a-z-]+')->name('settings.save');
+//      Route::post('/approvals/{id}/decision', [CaspaIntelligenceController::class,'decide'])->whereNumber('id')->name('approvals.decide');
+//  });
+
+
+/*
+|--------------------------------------------------------------------------
+| CASPA - Screen 69: Reports & Analytics
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware(['auth'])
+    ->prefix('caspa/reports')
+    ->name('caspa.reports.')
+    ->controller(ReportsAnalyticsController::class)
+    ->group(function () {
+
+        Route::get('/', function () {
+            return redirect()->route('caspa.reports.index', [
+                'report' => 'dashboard'
+            ]);
+        })->name('home');
+
+        Route::get('/export/{report}/{format}', 'export')
+            ->where([
+                'report' => 'dashboard|attendance|academic|performance|classes|grades|fees|teachers|custom',
+                'format' => 'csv|pdf'
+            ])
+            ->name('export');
+
+        Route::get('/{report?}', 'index')
+            ->where('report', 'dashboard|attendance|academic|performance|classes|grades|fees|teachers|custom')
+            ->defaults('report', 'dashboard')
+            ->name('index');
+    });
+
+Route::middleware(['auth'])->prefix('approval-center')->name('approvals.')->controller(ApprovalCenterController::class)->group(function () {
+    Route::get('/', 'dashboard')->name('dashboard');
+    Route::get('/requests', 'requests')->name('requests');
+    Route::get('/requests/create', 'create')->name('create');
+    Route::post('/requests', 'store')->name('store');
+    Route::get('/requests/{id}', 'show')->whereNumber('id')->name('show');
+    Route::post('/requests/{id}/decision', 'decide')->whereNumber('id')->name('decide');
+    Route::get('/my-approvals', 'myApprovals')->name('mine');
+    Route::get('/history', 'history')->name('history');
+    Route::get('/workflow', 'workflow')->name('workflow');
+    Route::post('/workflow', 'saveWorkflow')->name('workflow.save');
+    Route::get('/delegations', 'delegations')->name('delegations');
+    Route::post('/delegations', 'storeDelegation')->name('delegations.store');
+});
+
+
+// Add this inside routes/web.php. Do not add a second <?php if pasting into an existing file.
+
+use App\Http\Controllers\RoleBuilderController;
+
+Route::middleware(['auth'])->prefix('role-builder')->name('role-builder.')->controller(RoleBuilderController::class)->group(function () {
+    Route::get('/', 'dashboard')->name('dashboard');
+    Route::get('/roles', 'index')->name('index');
+    Route::get('/roles/create', 'create')->name('create');
+    Route::post('/roles', 'store')->name('store');
+    Route::get('/roles/{id}', 'show')->whereNumber('id')->name('show');
+    Route::get('/roles/{id}/edit', 'edit')->whereNumber('id')->name('edit');
+    Route::put('/roles/{id}', 'update')->whereNumber('id')->name('update');
+    Route::patch('/roles/{id}/toggle', 'toggle')->whereNumber('id')->name('toggle');
+    Route::post('/roles/{id}/assign', 'assign')->whereNumber('id')->name('assign');
+    Route::delete('/roles/{id}/assignments/{assignment}', 'removeAssignment')->whereNumber('id')->whereNumber('assignment')->name('assignment.remove');
+    Route::get('/compare', 'compare')->name('compare');
+});
+
+
+
+use App\Http\Controllers\PermissionMatrixController;
+
+Route::middleware(['auth'])->prefix('permission-matrix')->name('permission-matrix.')->controller(PermissionMatrixController::class)->group(function () {
+    Route::get('/', 'index')->name('index');
+    Route::put('/', 'update')->name('update');
+});
+
+
+
+use App\Http\Controllers\WorkflowBuilderController;
+use App\Http\Controllers\AuditLogsController;
+use App\Http\Controllers\SystemSettingsController;
+use App\Http\Controllers\IntegrationHubController;
+
+Route::middleware(['auth'])->prefix('workflow-builder')->name('workflow-builder.')->controller(WorkflowBuilderController::class)->group(function(){
+ Route::get('/','dashboard')->name('dashboard'); Route::get('/workflows','index')->name('index'); Route::get('/create','create')->name('create'); Route::post('/','store')->name('store');
+ Route::get('/{id}','show')->whereNumber('id')->name('show'); Route::get('/{id}/edit','edit')->whereNumber('id')->name('edit'); Route::put('/{id}','update')->whereNumber('id')->name('update');
+ Route::patch('/{id}/toggle','toggle')->whereNumber('id')->name('toggle'); Route::post('/{id}/run','run')->whereNumber('id')->name('run');
+});
+Route::middleware(['auth'])->prefix('audit-logs')->name('audit-logs.')->controller(AuditLogsController::class)->group(function(){
+ Route::get('/','dashboard')->name('dashboard'); Route::get('/events','index')->name('index'); Route::get('/export','export')->name('export'); Route::get('/events/{id}','show')->whereNumber('id')->name('show');
+});
+Route::middleware(['auth'])->prefix('system-settings')->name('system-settings.')->controller(SystemSettingsController::class)->group(function(){
+ Route::get('/','dashboard')->name('dashboard'); Route::get('/section/{section}','index')->name('section'); Route::put('/section/{section}','update')->name('update');
+});
+Route::middleware(['auth'])->prefix('integration-hub')->name('integration-hub.')->controller(IntegrationHubController::class)->group(function(){
+ Route::get('/','dashboard')->name('dashboard'); Route::get('/integrations','index')->name('index'); Route::get('/create','create')->name('create'); Route::post('/','store')->name('store');
+ Route::get('/{id}','show')->whereNumber('id')->name('show'); Route::get('/{id}/edit','edit')->whereNumber('id')->name('edit'); Route::put('/{id}','update')->whereNumber('id')->name('update');
+ Route::post('/{id}/test','test')->whereNumber('id')->name('test'); Route::patch('/{id}/toggle','toggle')->whereNumber('id')->name('toggle');
+});
+
+use App\Http\Controllers\CaspaChatController;
+use App\Http\Controllers\CaspaStudentLearningController;
+use App\Http\Controllers\CaspaTeacherAssistantController;
+use App\Http\Controllers\CaspaPrincipalIntelligenceController;
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/caspa-chat',[CaspaChatController::class,'index'])->name('caspa-chat.index');
+    Route::post('/caspa-chat/send',[CaspaChatController::class,'send'])->name('caspa-chat.send');
+    Route::get('/caspa-chat/conversations/{id}',[CaspaChatController::class,'conversation'])->whereNumber('id')->name('caspa-chat.conversation');
+
+    Route::get('/student-learning',[CaspaStudentLearningController::class,'index'])->name('student-learning.index');
+    Route::post('/student-learning/ask',[CaspaStudentLearningController::class,'ask'])->name('student-learning.ask');
+    Route::get('/student-learning/conversations/{id}',[CaspaStudentLearningController::class,'conversation'])->whereNumber('id')->name('student-learning.conversation');
+
+    Route::get('/teacher-assistant',[CaspaTeacherAssistantController::class,'index'])->name('teacher-assistant.index');
+    Route::post('/teacher-assistant/ask',[CaspaTeacherAssistantController::class,'ask'])->name('teacher-assistant.ask');
+    Route::get('/teacher-assistant/conversations/{id}',[CaspaTeacherAssistantController::class,'conversation'])->whereNumber('id')->name('teacher-assistant.conversation');
+
+    Route::get('/principal-intelligence',[CaspaPrincipalIntelligenceController::class,'index'])->name('principal-intelligence.index');
+    Route::post('/principal-intelligence/ask',[CaspaPrincipalIntelligenceController::class,'ask'])->name('principal-intelligence.ask');
+    Route::get('/principal-intelligence/conversations/{id}',[CaspaPrincipalIntelligenceController::class,'conversation'])->whereNumber('id')->name('principal-intelligence.conversation');
+});
+
+
+/*
+|--------------------------------------------------------------------------
+| Role dashboards
+|--------------------------------------------------------------------------
+| Keep the existing /dashboard route and replace only its current route
+| declaration with the block below. These URLs require authentication and
+| the matching active role assignment.
+*/
+Route::middleware(['auth', 'permission:DASHBOARD.VIEW'])->group(function () {
+    Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'index'])
+        ->name('dashboard');
+
+    Route::get('/dashboard/principal', [\App\Http\Controllers\DashboardController::class, 'principal'])
+        ->name('dashboard.principal');
+
+    Route::get('/dashboard/admin', [\App\Http\Controllers\DashboardController::class, 'admin'])
+        ->name('dashboard.admin');
+
+    Route::get('/dashboard/student', [\App\Http\Controllers\DashboardController::class, 'student'])
+        ->name('dashboard.student');
+
+    Route::get('/dashboard/teacher', [\App\Http\Controllers\DashboardController::class, 'teacher'])
+        ->name('dashboard.teacher');
+
+    Route::get('/dashboard/parent', [\App\Http\Controllers\DashboardController::class, 'parent'])
+        ->name('dashboard.parent');
 });

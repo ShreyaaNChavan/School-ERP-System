@@ -1,0 +1,10 @@
+@extends('layouts.schoolnexa')
+@section('content')
+@include('workflow-builder._style')
+@php($editing=!empty($workflow))
+<div class="sx-page"><div class="sx-head"><div><h1 class="sx-title">{{$editing?'Edit Workflow':'Create Workflow'}}</h1><p class="sx-sub">Define workflow steps, branches and transitions using the visual flow configuration.</p></div><div class="sx-actions"><a class="sx-btn" href="{{$editing?route('workflow-builder.show',$workflow->id):route('workflow-builder.dashboard')}}">Back to {{$editing?'Workflow Details':'Workflow Builder Dashboard'}}</a></div></div>
+@if($errors->any())<div class="sx-alert sx-error">@foreach($errors->all() as $e)<div>{{$e}}</div>@endforeach</div>@endif
+<form method="POST" action="{{$editing?route('workflow-builder.update',$workflow->id):route('workflow-builder.store')}}">@csrf @if($editing)@method('PUT')@endif
+<section class="sx-panel"><div class="sx-form"><div class="sx-field"><label>Workflow Name *</label><input name="name" required maxlength="150" value="{{old('name',$workflow->name??'')}}" placeholder="e.g. Purchase Approval"></div><div class="sx-field"><label>Workflow Status</label><input value="{{$editing?($workflow->is_active?'Active':'Inactive'):'Saved as inactive draft'}}" disabled></div></div></section>
+<section class="sx-panel"><h3>Visual Flow Designer</h3><div class="sx-flow"><div class="sx-node">Start</div><span class="sx-arrow">→</span><div class="sx-node">Condition</div><span class="sx-arrow">→</span><div class="sx-node">Approval</div><span class="sx-arrow">→</span><div class="sx-node">End</div></div><p class="sx-muted">Edit the workflow definition JSON below. This starter designer stores a structured graph; it does not yet execute automated actions or provide drag-and-drop node editing.</p><div class="sx-field"><label>Workflow Definition (JSON) *</label><textarea name="definition" required style="min-height:260px;font-family:monospace">{{old('definition',json_encode($definition,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES))}}</textarea></div></section><button class="sx-btn primary">{{$editing?'Save Workflow':'Save Workflow Draft'}}</button></form></div>
+@endsection

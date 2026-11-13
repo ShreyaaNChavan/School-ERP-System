@@ -1,0 +1,15 @@
+@if($errors->any())<div class="ptm-errors"><strong>Please correct the following:</strong><ul style="margin:7px 0 0 18px">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
+<div class="ptm-fields">
+<div class="ptm-field"><label>Student *</label><select name="student_id" required><option value="">Select student</option>@foreach($students as $student)<option value="{{ $student->id }}" @selected(old('student_id',$item->student_id??'')==$student->id)>{{ $student->first_name }} {{ $student->last_name }} · {{ $student->admission_number }}</option>@endforeach</select></div>
+<div class="ptm-field"><label>Teacher *</label><select name="teacher_id" required><option value="">Select teacher</option>@foreach($teachers as $teacher)<option value="{{ $teacher->id }}" @selected(old('teacher_id',$item->teacher_id??'')==$teacher->id)>{{ $teacher->first_name }} {{ $teacher->last_name }} · {{ $teacher->designation }}</option>@endforeach</select></div>
+<div class="ptm-field"><label>Parent / Guardian Name *</label><input name="parent_name" value="{{ old('parent_name',$item->parent_name??'') }}" required maxlength="180"></div>
+<div class="ptm-field"><label>Parent Contact Number</label><input name="parent_phone" value="{{ old('parent_phone',$item->parent_phone??'') }}" maxlength="30"></div>
+<div class="ptm-field"><label>Meeting Date *</label><input type="date" name="meeting_date" value="{{ old('meeting_date',isset($item)?\Carbon\Carbon::parse($item->meeting_date)->format('Y-m-d'):now()->format('Y-m-d')) }}" required></div>
+<div class="ptm-field"><label>Start Time *</label><input type="time" name="start_time" value="{{ old('start_time',isset($item)?substr($item->start_time,0,5):'09:00') }}" required></div>
+<div class="ptm-field"><label>Duration *</label><select name="duration_minutes" required>@foreach([10,15,20,25,30,45,60,90] as $duration)<option value="{{ $duration }}" @selected(old('duration_minutes',$item->duration_minutes??15)==$duration)>{{ $duration }} minutes</option>@endforeach</select></div>
+<div class="ptm-field"><label>Meeting Type *</label><select name="meeting_type" required>@foreach($types as $type)<option value="{{ $type }}" @selected(old('meeting_type',$item->meeting_type??'General')===$type)>{{ $type }}</option>@endforeach</select></div>
+<div class="ptm-field"><label>Status</label><select name="status">@foreach(['pending','confirmed','completed','cancelled','rescheduled'] as $status)<option value="{{ $status }}" @selected(old('status',$item->status??'pending')===$status)>{{ ucfirst($status) }}</option>@endforeach</select></div>
+<div class="ptm-field full"><label>Purpose / Discussion Agenda *</label><textarea name="purpose" required maxlength="1000">{{ old('purpose',$item->purpose??'') }}</textarea></div>
+<div class="ptm-field full"><label>Meeting Outcome</label><textarea name="outcome" maxlength="1000">{{ old('outcome',$item->outcome??'') }}</textarea></div>
+<div class="ptm-field full"><label>Internal Notes</label><textarea name="notes" maxlength="3000">{{ old('notes',$item->notes??'') }}</textarea></div>
+</div>

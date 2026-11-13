@@ -1,0 +1,8 @@
+@extends('layouts.schoolnexa')
+@section('content')
+@include('role-builder._style')
+<div class="rb-page"><div class="rb-head"><div><h1 class="rb-title">Role Comparison</h1><p class="rb-sub">Compare permission coverage across two to four active roles.</p></div><div class="rb-actions"><a class="rb-btn" href="{{ route('role-builder.dashboard') }}">Back to Role Builder Dashboard</a></div></div>
+<form method="GET" class="rb-panel"><h3>Select Roles</h3><div class="rb-form-grid">@for($i=0;$i<4;$i++)<div class="rb-field"><label>Role {{ $i+1 }}</label><select name="roles[]"><option value="">Choose a role</option>@foreach($roles as $role)<option value="{{ $role->id }}" @selected(in_array($role->id,$selectedIds ?? []))>{{ $role->name }}</option>@endforeach</select></div>@endfor</div><div style="margin-top:14px"><button class="rb-btn primary">Compare Roles</button></div></form>
+@if($comparison->isNotEmpty())<section class="rb-panel"><div class="rb-table-wrap"><table class="rb-table"><thead><tr><th>MODULE / PERMISSION</th>@foreach($roles->whereIn('id',$selectedIds) as $role)<th>{{ $role->name }}</th>@endforeach</tr></thead><tbody>@foreach($comparison as $group)<tr><td><strong>{{ $group->first()->module }}</strong><div class="rb-muted">{{ $group->first()->name }} · {{ $group->first()->code }}</div></td>@foreach($roles->whereIn('id',$selectedIds) as $role)<td>{{ $group->contains('role_id',$role->id) ? 'Granted' : '—' }}</td>@endforeach</tr>@endforeach</tbody></table></div></section>@elseif(count($selectedIds))<div class="rb-panel rb-empty">Select at least two and no more than four roles to compare.</div>@endif
+</div>
+@endsection

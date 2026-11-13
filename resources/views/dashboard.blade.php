@@ -36,9 +36,13 @@
         'settings'      => '<path d="M4 6h9M19 6h1M4 12h3M13 12h7M4 18h11M21 18h-1"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
         'notifications' => '<path d="M6 9a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 21h4"/>',
         'meetings'      => '<rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 6-3v10l-6-3"/>',
+        'pie'           => '<path d="M12 3v9h9"/><path d="M20.5 15A9 9 0 1 1 9 3.5"/>',
+        'trend'         => '<path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/>',
+        'records'       => '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
         'chevron-left'  => '<path d="m15 6-6 6 6 6"/>',
         'chevron-right' => '<path d="m9 6 6 6-6 6"/>',
         'arrow-right'   => '<path d="M5 12h14M13 6l6 6-6 6"/>',
+        'chevron-down'  => '<path d="m6 9 6 6 6-6"/>',
     ];
 
     $icon = function (string $name, int $size = 20) use ($paths) {
@@ -46,9 +50,7 @@
             . ($paths[$name] ?? $paths['layers']) . '</svg>';
     };
 
-    /* ---------- 3D picture icons (icons8 "3d-fluency" set) ----------
-       If you want a different picture for any icon, change its name here.
-       Browse names at https://icons8.com/icons/3d-fluency                         */
+    /* ---------- 3D picture icons (icons8 "3d-fluency" set) ---------- */
     $slugs = [
         'building'      => 'organization',
         'school'        => 'school',
@@ -73,6 +75,9 @@
         'safety'        => 'shield',
         'curriculum'    => 'open-book',
         'inventory'     => 'box',
+        'pie'           => 'pie-chart',
+        'trend'         => 'combo-chart',
+        'records'       => 'clipboard',
     ];
 
     /* Fallback colours: [highlight, base, shadow] */
@@ -145,25 +150,146 @@
         ['Platform Events',     $stats['events'],       'events',    'teal'],
     ];
 
+    /*
+     * Resolve links against routes already registered in this installation.
+     * URL fallbacks keep the controls clickable if a route uses another name.
+     */
+    $resolveDashboardUrl = function (array $routeNames, string $fallback) {
+        foreach ($routeNames as $routeName) {
+            if (\Illuminate\Support\Facades\Route::has($routeName)) {
+                return route($routeName);
+            }
+        }
+
+        return url($fallback);
+    };
+
+    $calendarUrl = $resolveDashboardUrl(
+        ['events.dashboard', 'events.index'],
+        '/events'
+    );
+
+    $aiChatUrl = $resolveDashboardUrl(
+        ['caspa-chat.index'],
+        '/caspa-chat'
+    );
+
+    $hostelUrl = $resolveDashboardUrl(
+        ['hostel.dashboard'],
+        '/hostel'
+    );
+
+    $hostelAllocationUrl = $resolveDashboardUrl(
+        ['hostel.allocations'],
+        '/hostel/allocations'
+    );
+
     $quick = [
-        ['Organizations', 'building',   'sky'],
-        ['Schools',       'school',     'success'],
-        ['Campuses',      'map',        'teal'],
-        ['Create User',   'admissions', 'purple'],
-        ['Manage Roles',  'key',        'warning'],
-        ['Reports',       'reports',    'navy'],
+        ['Organizations', 'building',   'sky',     $resolveDashboardUrl(['organizations.index'], '/organizations')],
+        ['Schools',       'school',     'success', $resolveDashboardUrl(['schools.index'], '/schools')],
+        ['Campuses',      'map',        'teal',    $resolveDashboardUrl(['campuses.index'], '/campuses')],
+        ['Create User',   'admissions', 'purple',  $resolveDashboardUrl(['staff.create'], '/staff/create')],
+        ['Manage Roles',  'key',        'warning', $resolveDashboardUrl(['role-builder.dashboard'], '/role-builder')],
+        ['Reports',       'reports',    'navy',    $resolveDashboardUrl(['caspa.reports.home', 'caspa.reports.index'], '/caspa/reports')],
     ];
 
     $alerts = [
-        ['Safeguarding Cases',   'Recorded platform cases',  $stats['safety_cases'], 'emergency', 'danger'],
-        ['School Registrations', 'Registered schools',       $stats['schools'],      'school',    'success'],
-        ['Platform Accounts',    'Registered user accounts', $stats['users'],        'user',      'teal'],
+        [
+            'Safeguarding Cases', 'Recorded platform cases', $stats['safety_cases'], 'emergency', 'danger',
+            $resolveDashboardUrl(['student-support.dashboard'], '/student-support')
+        ],
+        [
+            'School Registrations', 'Registered schools', $stats['schools'], 'school', 'success',
+            $resolveDashboardUrl(['schools.index'], '/schools')
+        ],
+        [
+            'Platform Accounts', 'Registered user accounts', $stats['users'], 'user', 'teal',
+            $resolveDashboardUrl(['staff.index'], '/staff')
+        ],
     ];
 
     $orgMax      = max(1, (int) $organizationSchoolData->max('total'));
     $maxUsers    = max(1, (int) collect($userGrowth)->max('total'));
     $firstDay    = now()->startOfMonth()->dayOfWeek;
     $daysInMonth = now()->daysInMonth;
+
+    /* ---------- Chart data ---------- */
+    $orgRows  = collect($organizationSchoolData)
+        ->map(fn ($i) => ['name' => (string) data_get($i, 'name', '—'), 'total' => (int) data_get($i, 'total', 0)])
+        ->sortByDesc('total')->values();
+    $orgTop   = $orgRows->take(5);
+    $orgOther = (int) $orgRows->slice(5)->sum('total');
+    $orgChartLabels = $orgTop->pluck('name')->when($orgOther > 0, fn ($c) => $c->push('Others'))->values()->all();
+    $orgChartData   = $orgTop->pluck('total')->when($orgOther > 0, fn ($c) => $c->push($orgOther))->values()->all();
+
+    $otherAccounts = max(0, (int) $stats['users'] - (int) $stats['students'] - (int) $stats['staff']);
+    $userDistData  = [(int) $stats['students'], (int) $stats['staff'], $otherAccounts];
+
+    $resourceLabels = array_column($resources, 0);
+    $resourceData   = array_map(fn ($r) => (int) $r[1], $resources);
+
+    $recordLabels = ['Admissions', 'Attendance Records', 'Fee Transactions', 'Safeguarding Cases'];
+    $recordData   = [(int) $stats['admissions'], (int) $stats['attendance'], (int) $stats['payments'], (int) $stats['safety_cases']];
+
+    /* ---------- Operations data ----------
+       Optional variables from the controller (all have safe fallbacks, nothing is invented):
+       $attendanceStats ['students'|'teachers'|'staff' => ['present','absent','late','emergency']]
+       $libraryStats    ['total_titles','available','issued','reserved','low_stock']   $topBooks [['title','author','borrows'], ...]
+       $fleetStats      ['total','active','idle','service','offline','trips','distance','occupancy','on_time']
+       $routeStatus     [['name','status'=>'live|delayed|idle','onboard','eta','speed'], ...]
+       $mapPoints       [['name','lat','lng','type'=>'vehicle','status'=>'live|delayed|idle','route'], ...]
+       $hostelStats     ['occupied','available','reserved','maintenance']
+       $hostelBlocks    [['name'=>'Boys Hostel','pct'=>88], ...]                                                      */
+    $routeHas = fn ($n) => \Illuminate\Support\Facades\Route::has($n);
+
+    $attKeys   = ['present', 'absent', 'late', 'emergency'];
+    $attRaw    = $attendanceStats ?? [];
+    $attGroups = [];
+    foreach (['students', 'teachers', 'staff'] as $g) {
+        $row = $attRaw[$g] ?? ($g === 'students' ? ['present' => (int) $stats['attendance']] : []);
+        foreach ($attKeys as $k) { $attGroups[$g][$k] = (int) ($row[$k] ?? 0); }
+    }
+
+    $libS        = $libraryStats ?? [];
+    $topBooks    = collect($topBooks ?? []);
+    $topMax      = max(1, (int) $topBooks->max('borrows'));
+    $libTotal    = (int) ($libS['total_titles'] ?? $stats['books']);
+    $libIssued   = (int) ($libS['issued'] ?? 0);
+    $libReserved = (int) ($libS['reserved'] ?? 0);
+    $libLow      = (int) ($libS['low_stock'] ?? 0);
+    $libAvail    = (int) ($libS['available'] ?? max(0, $libTotal - $libIssued));
+    $libPct      = $libTotal > 0 ? (int) round($libAvail / $libTotal * 100) : 0;
+
+    $fl        = $fleetStats ?? [];
+    $fTotal    = (int) ($fl['total'] ?? $stats['vehicles']);
+    $fActive   = (int) ($fl['active'] ?? 0);
+    $fIdle     = (int) ($fl['idle'] ?? 0);
+    $fService  = (int) ($fl['service'] ?? 0);
+    $fOffline  = (int) ($fl['offline'] ?? 0);
+    $fSeg      = max(1, $fActive + $fIdle + $fService + $fOffline);
+    $fActivePct = $fTotal > 0 ? (int) round($fActive / $fTotal * 100) : 0;
+    $fOcc      = (int) ($fl['occupancy'] ?? 0);
+    $fOnTime   = (int) ($fl['on_time'] ?? 0);
+    $routes    = collect($routeStatus ?? []);
+    $vehiclePts = collect($mapPoints ?? [])->filter(fn ($p) => data_get($p, 'type', 'vehicle') === 'vehicle')->values();
+    $statusTone = fn ($s) => match (strtolower((string) $s)) { 'delayed' => 'red', 'idle' => 'amber', default => 'green' };
+
+    /* ---------- Hostel data ---------- */
+    $hs      = $hostelStats ?? [];
+    $hOcc    = (int) ($hs['occupied'] ?? 0);
+    $hAvail  = (int) ($hs['available'] ?? 0);
+    $hRes    = (int) ($hs['reserved'] ?? 0);
+    $hMaint  = (int) ($hs['maintenance'] ?? 0);
+    $hTotal  = max(1, $hOcc + $hAvail + $hRes + $hMaint);
+    $hPct    = round($hOcc / $hTotal * 100, 1);
+    $hBlocks = collect($hostelBlocks ?? [])->values();
+    $hColors = ['#176B87', '#3B82F6', '#D97706', '#5B3FA3', '#16A34A'];
+    $hBeds   = [
+        ['Occupied',    $hOcc,   '#176B87'],
+        ['Available',   $hAvail, '#16A34A'],
+        ['Reserved',    $hRes,   '#D97706'],
+        ['Maintenance', $hMaint, '#DC2626'],
+    ];
 @endphp
 
 <style>
@@ -197,14 +323,12 @@
     .sa-3d-img{ width:100%; height:100%; object-fit:contain; user-select:none; -webkit-user-drag:none;
                 filter:drop-shadow(0 10px 8px rgba(18,59,93,.28)); }
 
-    /* soft ground shadow under the icon */
     .sa-3d::after{
         content:''; position:absolute; left:20%; right:20%; bottom:-7px; height:9px; border-radius:50%;
         background:rgba(18,59,93,.22); filter:blur(5px); transition:all .18s ease-out;
     }
     .sa-3d.xs::after{ bottom:-5px; height:6px; }
 
-    /* fallback (flat glossy tile) only appears if the picture fails to load */
     .sa-ico{ display:none; }
     .sa-3d.fb .sa-3d-img{ display:none; }
     .sa-3d.fb .sa-ico{
@@ -215,7 +339,6 @@
     }
     .sa-3d.fb .sa-ico svg{ filter:drop-shadow(0 2px 2px rgba(0,0,0,.28)); }
 
-    /* click "pop" */
     .sa-3d.pop .sa-3d-in{ animation:saPop .55s cubic-bezier(.3,1.6,.5,1), saFloat 4.2s ease-in-out infinite .55s; }
 
     @keyframes saFloat{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-5px); } }
@@ -225,8 +348,10 @@
     /* ---------- Panels ---------- */
     .sa-panel{ background:#fff; border:1px solid var(--border); border-radius:16px; padding:20px; }
     .sa-head{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:14px; }
+    .sa-head-actions{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:flex-end; }
     .sa-title{ font-size:15px; font-weight:700; color:var(--navy); }
     .sa-link{ display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:600; color:var(--teal); text-decoration:none; white-space:nowrap; }
+    .sa-link:hover{ text-decoration:underline; }
     .sa-pill{ display:inline-flex; align-items:center; justify-content:center; min-width:26px; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700; background:#FEF3C7; color:var(--warning); }
     .sa-pill.danger{ background:#FEE2E2; color:var(--danger); }
     .sa-pill.teal{ background:#D5EBF2; color:var(--teal); }
@@ -262,6 +387,8 @@
     /* Calendar */
     .sa-cal-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; color:var(--muted); }
     .sa-cal-month{ font-size:14px; font-weight:700; color:var(--navy); }
+    .sa-cal-nav{ background:none; border:0; padding:6px; border-radius:8px; color:var(--muted); cursor:pointer; display:grid; place-items:center; }
+    .sa-cal-nav:hover{ background:#EEF2F6; color:var(--navy); }
     .sa-cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; text-align:center; }
     .sa-cal-grid .dow{ font-size:11px; font-weight:700; color:var(--muted); padding:6px 0; text-transform:uppercase; }
     .sa-cal-grid .d{ height:34px; display:grid; place-items:center; font-size:13px; border-radius:10px; color:var(--text); }
@@ -314,14 +441,147 @@
 
     .sa-empty{ font-size:13px; color:var(--muted); padding:6px 0; }
 
+    /* ---------- Analytics / charts ---------- */
+    .sa-sh{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .sa-sh h2{ font-size:15px; font-weight:800; color:var(--navy); }
+    .sa-sh span{ font-size:11px; color:var(--muted); }
+    .sa-charts-3{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+    .sa-charts-2{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+    .sa-chead{ display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+    .sa-chead .sa-3d{ margin-bottom:6px; }
+    .sa-chead h3{ font-size:14px; font-weight:800; color:var(--navy); }
+    .sa-chead small{ display:block; font-size:11px; color:var(--muted); margin-top:2px; }
+    .sa-chart{ position:relative; height:230px; }
+    .sa-chart.donut{ height:200px; }
+    .sa-chart canvas{ max-width:100%; }
+    .sa-donut-c{ position:absolute; inset:0; display:grid; place-content:center; text-align:center; pointer-events:none; }
+    .sa-donut-c strong{ display:block; font-size:26px; font-weight:800; color:var(--navy); line-height:1.1; }
+    .sa-donut-c span{ font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+    .sa-legend{ display:flex; flex-wrap:wrap; justify-content:center; gap:6px 14px; margin-top:12px; font-size:11px; color:var(--muted); }
+    .sa-legend span{ display:inline-flex; align-items:center; gap:6px; }
+    .sa-legend i{ width:9px; height:9px; border-radius:50%; display:inline-block; }
+    .sa-legend b{ color:var(--navy); }
+
+    /* ---------- Operations: attendance / library / transport ---------- */
+    .sa-ops-top{ display:grid; grid-template-columns:minmax(0,.8fr) minmax(0,2fr); gap:16px; align-items:stretch; }
+    .sa-btn{ display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border:1px solid var(--border); border-radius:10px; background:#fff; color:var(--navy); font-size:12px; font-weight:700; text-decoration:none; cursor:pointer; font-family:inherit; white-space:nowrap; }
+    .sa-btn:hover{ border-color:var(--teal); background:#F0F9FF; }
+    .sa-chead .push{ margin-left:auto; }
+
+    .sa-tabs{ display:flex; gap:18px; border-bottom:1px solid #E2E8F0; margin-bottom:14px; }
+    .sa-tab{ background:none; border:0; padding:8px 0; font-size:13px; font-weight:700; color:var(--muted); cursor:pointer; font-family:inherit; border-bottom:2px solid transparent; margin-bottom:-1px; }
+    .sa-tab.on{ color:var(--navy); border-bottom-color:var(--teal); }
+    .sa-att-stats{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px; }
+    .sa-att-stat{ background:#F1F5F9; border-radius:10px; padding:10px 6px; text-align:center; }
+    .sa-att-stat strong{ display:block; font-size:18px; font-weight:800; color:var(--navy); }
+    .sa-att-stat span{ font-size:11px; color:var(--muted); }
+    .sa-att-chart{ position:relative; height:240px; }
+    .sa-bubble{ position:absolute; background:#fff; border-radius:50%; width:62px; height:62px; display:grid; place-content:center; text-align:center; box-shadow:0 6px 16px rgba(18,59,93,.2); pointer-events:none; }
+    .sa-bubble strong{ font-size:14px; font-weight:800; color:var(--navy); line-height:1.1; }
+    .sa-bubble span{ font-size:10px; color:var(--muted); }
+    .sa-bubble.p{ left:2%; top:14%; }
+    .sa-bubble.a{ right:2%; top:52%; }
+    .sa-att-empty{ position:absolute; inset:0; display:none; place-items:center; font-size:13px; color:var(--muted); text-align:center; }
+
+    .sa-lib{ display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:24px; }
+    .sa-lib h4,.sa-tp h4{ margin:0 0 12px; font-size:15px; font-weight:800; color:var(--navy); }
+    .sa-lib-list{ border:1px solid #E2E8F0; border-radius:12px; }
+    .sa-bk{ display:grid; grid-template-columns:26px 40px minmax(0,1fr) auto; align-items:center; gap:10px; padding:10px 12px; border-bottom:1px solid #EEF2F6; }
+    .sa-bk:last-child{ border-bottom:0; }
+    .sa-bk .rk{ font-size:11px; color:#94A3B8; font-weight:700; }
+    .sa-bk b{ display:block; font-size:13px; color:var(--navy); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .sa-bk .bar{ height:5px; background:#E2E8F0; border-radius:99px; margin-top:6px; overflow:hidden; }
+    .sa-bk .bar i{ display:block; height:100%; background:var(--navy); border-radius:99px; }
+    .sa-bk .cnt{ font-size:11px; color:var(--muted); white-space:nowrap; }
+    .sa-ring{ --p:0; --c:#123B5D; position:relative; width:150px; height:150px; border-radius:50%; background:conic-gradient(var(--c) calc(var(--p) * 1%), #E2E8F0 0); display:grid; place-items:center; margin:0 auto; }
+    .sa-ring::before{ content:''; position:absolute; inset:13px; background:#fff; border-radius:50%; }
+    .sa-ring div{ position:relative; text-align:center; }
+    .sa-ring strong{ display:block; font-size:28px; font-weight:800; color:var(--navy); line-height:1.1; }
+    .sa-ring span{ font-size:11px; font-weight:700; color:var(--success); }
+    .sa-ring.sm{ width:68px; height:68px; }
+    .sa-ring.sm::before{ inset:7px; }
+    .sa-ring.sm strong{ font-size:14px; }
+    .sa-lib-mid{ text-align:center; margin:14px 0 12px; }
+    .sa-lib-mid strong{ display:block; font-size:14px; color:var(--navy); }
+    .sa-lib-mid span{ font-size:11px; color:var(--muted); }
+    .sa-chips{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+    .sa-chip{ background:#F1F5F9; border-radius:10px; text-align:center; padding:9px 4px; }
+    .sa-chip strong{ display:block; font-size:14px; color:var(--navy); }
+    .sa-chip span{ font-size:10px; color:var(--muted); }
+    .sa-chip i{ display:inline-block; width:6px; height:6px; border-radius:50%; margin-right:4px; }
+
+    .sa-tp{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.1fr) minmax(0,1fr); gap:0; }
+    .sa-tp > div{ padding:0 20px; }
+    .sa-tp > div:first-child{ padding-left:0; }
+    .sa-tp > div:last-child{ padding-right:0; }
+    .sa-tp > div + div{ border-left:1px solid #E2E8F0; }
+    .sa-live{ display:inline-flex; align-items:center; gap:6px; font-size:11px; color:var(--success); font-weight:700; }
+    .sa-live i{ width:7px; height:7px; border-radius:50%; background:var(--success); display:inline-block; animation:saPulse 1.6s ease-in-out infinite; }
+    @keyframes saPulse{ 0%,100%{ opacity:1; } 50%{ opacity:.3; } }
+    .sa-route{ border-radius:10px; padding:10px 12px; margin-bottom:10px; border:1px solid transparent; }
+    .sa-route.green{ background:#E7F5EC; border-color:#CDE9D7; }
+    .sa-route.red{ background:#FDECEC; border-color:#F6CFCF; }
+    .sa-route.amber{ background:#FEF3DC; border-color:#F8E1AE; }
+    .sa-route .t{ display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:700; color:var(--navy); }
+    .sa-route .t em{ font-style:normal; font-size:10px; font-weight:800; letter-spacing:.04em; }
+    .sa-route.green em{ color:var(--success); } .sa-route.red em{ color:var(--danger); } .sa-route.amber em{ color:var(--warning); }
+    .sa-route .m{ display:flex; justify-content:space-between; gap:8px; margin-top:6px; font-size:11px; color:var(--muted); }
+    .sa-fstats{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px; }
+    .sa-fstat{ background:#EAF2FF; border-radius:10px; padding:10px; }
+    .sa-fstat strong{ display:block; font-size:17px; font-weight:800; color:var(--navy); }
+    .sa-fstat span{ font-size:11px; color:var(--muted); }
+    .sa-seg{ display:flex; height:8px; border-radius:99px; overflow:hidden; background:#E2E8F0; margin:8px 0; }
+    .sa-seg i{ display:block; height:100%; }
+    .sa-seg-legend{ display:flex; justify-content:space-between; font-size:10px; color:var(--muted); }
+    .sa-seg-legend span::before{ content:''; display:inline-block; width:6px; height:6px; border-radius:50%; margin-right:4px; background:var(--c); }
+    .sa-gauges{ display:flex; justify-content:space-around; margin-top:16px; text-align:center; }
+    .sa-gauges small{ display:block; margin-top:6px; font-size:11px; color:var(--muted); }
+    .sa-fmap-wrap{ position:relative; }
+    #saFleetMap{ height:150px; border-radius:10px; border:1px solid #E2E8F0; z-index:1; }
+    .sa-fmap-empty{ position:absolute; inset:0; display:none; place-items:center; font-size:12px; color:var(--muted); text-align:center; pointer-events:none; z-index:500; padding:10px; }
+    .sa-veh{ display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--navy); padding:5px 0; }
+    .sa-veh span{ display:inline-flex; align-items:center; gap:7px; }
+    .sa-veh i{ width:7px; height:7px; border-radius:50%; display:inline-block; }
+    .sa-veh em{ font-style:normal; font-size:11px; font-weight:600; }
+    .sa-veh em.green{ color:var(--success); } .sa-veh em.red{ color:var(--danger); } .sa-veh em.amber{ color:var(--warning); }
+    .sa-sub{ font-size:11px; color:var(--muted); margin:14px 0 4px; }
+
+    /* ---------- Hostel ---------- */
+    .sa-hostel{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+    .sa-selwrap{ position:relative; display:inline-flex; align-items:center; }
+    .sa-select{ appearance:none; -webkit-appearance:none; border:1px solid var(--border); border-radius:8px; background:#fff; color:var(--muted); font:600 12px 'Inter',sans-serif; padding:7px 30px 7px 12px; cursor:pointer; }
+    .sa-select:hover{ border-color:var(--teal); }
+    .sa-selwrap svg{ position:absolute; right:9px; pointer-events:none; color:var(--muted); }
+    .sa-hocc{ display:flex; align-items:center; gap:24px; }
+    .sa-hocc .sa-ring{ width:130px; height:130px; flex-shrink:0; margin:0; }
+    .sa-hocc .sa-ring::before{ inset:11px; }
+    .sa-hocc .sa-ring strong{ font-size:20px; }
+    .sa-hocc .sa-ring span{ color:var(--muted); font-weight:500; font-size:11px; }
+    .sa-hrows{ flex:1; min-width:0; }
+    .sa-hrow{ display:grid; grid-template-columns:1fr auto; gap:3px 12px; margin-bottom:12px; font-size:13px; color:var(--navy); font-weight:500; }
+    .sa-hrow:last-child{ margin-bottom:0; }
+    .sa-hrow strong{ font-weight:700; }
+    .sa-hrow .sa-track{ grid-column:1 / -1; height:6px; }
+    .sa-hrow .sa-fill{ background:var(--c); }
+    .sa-bed{ display:grid; grid-template-columns:14px 1fr auto; column-gap:10px; align-items:center; margin-bottom:12px; font-size:13px; color:var(--navy); font-weight:500; }
+    .sa-bed i{ width:7px; height:7px; border-radius:50%; background:var(--c); display:inline-block; }
+    .sa-bed strong{ font-weight:700; }
+    .sa-bed .sa-track{ grid-column:2 / -1; height:5px; margin-top:4px; }
+    .sa-bed .sa-fill{ background:var(--c); }
+    .sa-hfoot{ display:flex; justify-content:flex-end; margin-top:14px; }
+
+    @media (max-width:1280px){ .sa-ops-top{ grid-template-columns:1fr; } .sa-tp{ grid-template-columns:1fr; gap:22px; } .sa-tp > div{ padding:0; } .sa-tp > div + div{ border-left:0; border-top:1px solid #E2E8F0; padding-top:20px; } }
+    @media (max-width:800px){ .sa-lib{ grid-template-columns:1fr; } .sa-hostel{ grid-template-columns:1fr; } .sa-hocc{ flex-direction:column; align-items:flex-start; } }
+
     /* ---------- Responsive ---------- */
     @media (max-width:1280px){
+        .sa-charts-3{ grid-template-columns:repeat(2,minmax(0,1fr)); }
         .sa-kpis{ grid-template-columns:repeat(2,minmax(0,1fr)); }
         .sa-main{ grid-template-columns:repeat(2,minmax(0,1fr)); }
         .sa-col:last-child{ grid-column:1 / -1; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; }
     }
     @media (max-width:800px){
-        .sa-main,.sa-col:last-child,.sa-bottom{ grid-template-columns:1fr; }
+        .sa-main,.sa-col:last-child,.sa-bottom,.sa-charts-3,.sa-charts-2{ grid-template-columns:1fr; }
         .sa-welcome{ padding:20px; }
         .sa-welcome h1{ font-size:22px; }
         .sa-welcome-right{ width:100%; justify-content:space-between; }
@@ -373,16 +633,16 @@
             <div class="sa-panel">
                 <div class="sa-head">
                     <h3 class="sa-title">Platform Calendar</h3>
-                    <a href="#" class="sa-link">View Calendar {!! $icon('arrow-right', 14) !!}</a>
+                    <a href="{{ $calendarUrl }}" class="sa-link">View Calendar {!! $icon('arrow-right', 14) !!}</a>
                 </div>
 
                 <div class="sa-cal-top">
-                    {!! $icon('chevron-left', 18) !!}
-                    <span class="sa-cal-month">{{ now()->format('F Y') }}</span>
-                    {!! $icon('chevron-right', 18) !!}
+                    <button type="button" class="sa-cal-nav" id="saCalPrev" aria-label="Previous month">{!! $icon('chevron-left', 18) !!}</button>
+                    <span class="sa-cal-month" id="saCalLabel">{{ now()->format('F Y') }}</span>
+                    <button type="button" class="sa-cal-nav" id="saCalNext" aria-label="Next month">{!! $icon('chevron-right', 18) !!}</button>
                 </div>
 
-                <div class="sa-cal-grid">
+                <div class="sa-cal-grid" id="saCalGrid">
                     @foreach(['Su','Mo','Tu','We','Th','Fr','Sa'] as $dow)
                         <span class="dow">{{ $dow }}</span>
                     @endforeach
@@ -413,11 +673,11 @@
             <div class="sa-panel">
                 <div class="sa-head"><h3 class="sa-title">Quick Actions</h3></div>
                 <div class="sa-quick-grid">
-                    @foreach($quick as [$label, $ic, $tone])
-                        <div class="sa-quick" data-tilt>
+                    @foreach($quick as [$label, $ic, $tone, $url])
+                        <a class="sa-quick" href="{{ $url }}" data-tilt style="text-decoration:none">
                             {!! $tile($ic, $tone, 'sm') !!}
                             <strong>{{ $label }}</strong>
-                        </div>
+                        </a>
                     @endforeach
                 </div>
                 <p class="sa-note">Management screens will be connected as their modules are implemented.</p>
@@ -465,18 +725,22 @@
             <div class="sa-panel">
                 <div class="sa-head">
                     <h3 class="sa-title">Critical Alerts</h3>
-                    <span class="sa-pill teal">Platform</span>
+                    <div class="sa-head-actions">
+                        <span class="sa-pill teal">Platform</span>
+                        <a href="{{ $alerts[0][5] }}" class="sa-link">Manage</a>
+                        <a href="{{ $alerts[0][5] }}" class="sa-link">View All {!! $icon('arrow-right', 14) !!}</a>
+                    </div>
                 </div>
 
-                @foreach($alerts as [$title, $sub, $count, $ic, $tone])
-                    <div class="sa-row" data-tilt>
+                @foreach($alerts as [$title, $sub, $count, $ic, $tone, $url])
+                    <a class="sa-row" href="{{ $url }}" data-tilt style="text-decoration:none;color:inherit">
                         {!! $tile($ic, $tone, 'xs') !!}
                         <div class="sa-row-body">
                             <div class="sa-row-title">{{ $title }}</div>
                             <div class="sa-row-sub">{{ $sub }}</div>
                         </div>
                         <span class="sa-pill {{ $tone === 'danger' ? 'danger' : '' }}">{{ $count }}</span>
-                    </div>
+                    </a>
                 @endforeach
             </div>
 
@@ -495,6 +759,251 @@
                         </div>
                     @endforeach
                 </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- ANALYTICS --}}
+    <div class="sa-sh"><h2>Platform Analytics</h2><span>Charts built from the platform records above</span></div>
+
+    <div class="sa-charts-3">
+        <div class="sa-panel">
+            <div class="sa-chead" data-tilt>
+                {!! $tile('school', 'success', 'xs') !!}
+                <div><h3>Schools by Organization</h3><small>Share of registered schools</small></div>
+            </div>
+            <div class="sa-chart donut">
+                <canvas id="saOrgChart"></canvas>
+                <div class="sa-donut-c"><strong>{{ number_format(array_sum($orgChartData)) }}</strong><span>Schools</span></div>
+            </div>
+            <div class="sa-legend" id="saOrgLegend"></div>
+        </div>
+
+        <div class="sa-panel">
+            <div class="sa-chead" data-tilt>
+                {!! $tile('pie', 'purple', 'xs') !!}
+                <div><h3>User Distribution</h3><small>Students, staff and other accounts</small></div>
+            </div>
+            <div class="sa-chart donut">
+                <canvas id="saUserChart"></canvas>
+                <div class="sa-donut-c"><strong>{{ number_format(array_sum($userDistData)) }}</strong><span>Accounts</span></div>
+            </div>
+            <div class="sa-legend" id="saUserLegend"></div>
+        </div>
+
+        <div class="sa-panel">
+            <div class="sa-chead" data-tilt>
+                {!! $tile('map', 'sky', 'xs') !!}
+                <div><h3>Platform Resources</h3><small>Campuses, fleet, hostel, library, events</small></div>
+            </div>
+            <div class="sa-chart"><canvas id="saResChart"></canvas></div>
+        </div>
+    </div>
+
+    <div class="sa-charts-2">
+        <div class="sa-panel">
+            <div class="sa-chead" data-tilt>
+                {!! $tile('trend', 'teal', 'xs') !!}
+                <div><h3>User Registration Trend</h3><small>New accounts over the last 6 months</small></div>
+            </div>
+            <div class="sa-chart"><canvas id="saTrendChart"></canvas></div>
+        </div>
+
+        <div class="sa-panel">
+            <div class="sa-chead" data-tilt>
+                {!! $tile('records', 'warning', 'xs') !!}
+                <div><h3>Platform Records</h3><small>Admissions, attendance, payments and cases</small></div>
+            </div>
+            <div class="sa-chart"><canvas id="saRecChart"></canvas></div>
+        </div>
+    </div>
+
+    {{-- OPERATIONS --}}
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <div class="sa-sh"><h2>Platform Operations</h2><span>Attendance, library and transport at a glance</span></div>
+
+    <div class="sa-ops-top">
+
+        {{-- ATTENDANCE --}}
+        <div class="sa-panel">
+            <div class="sa-chead" data-tilt>
+                {!! $tile('attendance', 'success', 'xs') !!}
+                <h3 style="font-size:17px">Attendance</h3>
+                @if($routeHas('attendance.index'))<a class="sa-btn push" href="{{ route('attendance.index') }}">View All {!! $icon('arrow-right', 14) !!}</a>@endif
+            </div>
+            <div class="sa-tabs" id="attTabs">
+                <button type="button" class="sa-tab on" data-g="students">Students</button>
+                <button type="button" class="sa-tab" data-g="teachers">Teachers</button>
+                <button type="button" class="sa-tab" data-g="staff">Staff</button>
+                <span class="sa-muted" style="margin-left:auto;align-self:center">Today</span>
+            </div>
+            <div class="sa-att-stats">
+                <div class="sa-att-stat"><strong id="attEmergency">0</strong><span>Emergency</span></div>
+                <div class="sa-att-stat"><strong id="attAbsent">0</strong><span>Absent</span></div>
+                <div class="sa-att-stat"><strong id="attLate">0</strong><span>Late</span></div>
+            </div>
+            <div class="sa-att-chart">
+                <canvas id="saAttChart"></canvas>
+                <div class="sa-bubble p"><strong id="attPresentB">0</strong><span>Present</span></div>
+                <div class="sa-bubble a"><strong id="attAbsentB">0</strong><span>Absent</span></div>
+                <div class="sa-att-empty" id="attEmpty">No attendance recorded yet.</div>
+            </div>
+        </div>
+
+        {{-- LIBRARY --}}
+        <div class="sa-panel">
+            <div class="sa-chead" data-tilt>
+                {!! $tile('library', 'warning', 'xs') !!}
+                <div><small style="color:var(--sky);font-weight:700;letter-spacing:.06em;text-transform:uppercase">Library</small><h3 style="font-size:19px">Library Overview</h3></div>
+                @if($routeHas('library.dashboard'))<a class="sa-btn push" href="{{ route('library.dashboard') }}">View Library {!! $icon('arrow-right', 14) !!}</a>@endif
+            </div>
+            <div class="sa-lib">
+                <div>
+                    <h4>Most Borrowed Books</h4>
+                    <div class="sa-lib-list">
+                        @forelse($topBooks->take(5) as $i => $book)
+                            <div class="sa-bk" data-tilt>
+                                <span class="rk">{{ str_pad($i + 1, 2, '0', STR_PAD_LEFT) }}</span>
+                                {!! $tile('library', $tones[$i % count($tones)], 'xs') !!}
+                                <div style="min-width:0"><b title="{{ data_get($book, 'title') }}">{{ data_get($book, 'title', 'Untitled') }}</b><div class="bar"><i style="width:{{ min(100, ((int) data_get($book, 'borrows', 0) / $topMax) * 100) }}%"></i></div></div>
+                                <span class="cnt">{{ number_format((int) data_get($book, 'borrows', 0)) }} issues</span>
+                            </div>
+                        @empty
+                            <p class="sa-empty" style="padding:24px;text-align:center">No borrowing records yet.</p>
+                        @endforelse
+                    </div>
+                </div>
+                <div>
+                    <h4>Book Availability</h4>
+                    <div class="sa-ring" style="--p:{{ $libPct }}" data-tilt><div><strong>{{ $libPct }}%</strong><span>Available</span></div></div>
+                    <div class="sa-lib-mid"><strong>{{ number_format($libAvail) }} / {{ number_format($libTotal) }} titles</strong><span>Available across all shelves</span></div>
+                    <div class="sa-chips">
+                        <div class="sa-chip"><strong>{{ number_format($libIssued) }}</strong><span><i style="background:#3B82F6"></i>Issued</span></div>
+                        <div class="sa-chip"><strong>{{ number_format($libReserved) }}</strong><span><i style="background:#64748B"></i>Reserved</span></div>
+                        <div class="sa-chip"><strong>{{ number_format($libLow) }}</strong><span><i style="background:#D97706"></i>Low Stock</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- TRANSPORT --}}
+    <div class="sa-panel">
+        <div class="sa-chead" data-tilt>
+            {!! $tile('transport', 'success', 'xs') !!}
+            <h3 style="font-size:17px">Transport Overview</h3>
+            <span class="sa-live push"><i></i>Live operations · Updated {{ now()->format('h:i A') }}</span>
+        </div>
+        <div class="sa-tp">
+
+            <div>
+                <div class="sa-chead" style="justify-content:space-between;margin-bottom:12px">
+                    <h4 style="margin:0"><span class="sa-live" style="margin-right:6px">LIVE</span>Live Route Status</h4>
+                    @if($routeHas('transport.dashboard'))<a class="sa-link" href="{{ route('transport.dashboard') }}">View All</a>@endif
+                </div>
+                @forelse($routes->take(4) as $r)
+                    @php $tone = $statusTone(data_get($r, 'status')); @endphp
+                    <div class="sa-route {{ $tone }}" data-tilt>
+                        <div class="t"><span>{{ data_get($r, 'name', 'Route') }}</span><em>{{ strtoupper(data_get($r, 'status', 'live')) }}</em></div>
+                        <div class="m"><span>{{ (int) data_get($r, 'onboard', 0) }} Onboard</span><span>{{ data_get($r, 'eta', '—') }}</span><span>{{ (int) data_get($r, 'speed', 0) }} km/h</span></div>
+                    </div>
+                @empty
+                    <p class="sa-empty">No live routes reported.</p>
+                @endforelse
+            </div>
+
+            <div>
+                <h4>Fleet Utilization</h4>
+                <div class="sa-fstats">
+                    <div class="sa-fstat"><strong>{{ $fActive }}/{{ $fTotal }}</strong><span>Active</span></div>
+                    <div class="sa-fstat"><strong>{{ number_format((int) ($fl['trips'] ?? 0)) }}</strong><span>Trips</span></div>
+                    <div class="sa-fstat"><strong>{{ number_format((float) ($fl['distance'] ?? 0)) }} km</strong><span>Distance</span></div>
+                </div>
+                <div class="sa-muted" style="font-weight:700;color:var(--navy)">Fleet Status</div>
+                <div class="sa-seg">
+                    <i style="width:{{ $fActive / $fSeg * 100 }}%;background:#16A34A"></i>
+                    <i style="width:{{ $fIdle / $fSeg * 100 }}%;background:#D97706"></i>
+                    <i style="width:{{ $fService / $fSeg * 100 }}%;background:#3B82F6"></i>
+                    <i style="width:{{ $fOffline / $fSeg * 100 }}%;background:#DC2626"></i>
+                </div>
+                <div class="sa-seg-legend">
+                    <span style="--c:#16A34A">Active {{ $fActive }}</span><span style="--c:#D97706">Idle {{ $fIdle }}</span><span style="--c:#3B82F6">Service {{ $fService }}</span><span style="--c:#DC2626">Offline {{ $fOffline }}</span>
+                </div>
+                <div class="sa-gauges">
+                    <div><div class="sa-ring sm" style="--p:{{ $fActivePct }};--c:#16A34A" data-tilt><div><strong>{{ $fActivePct }}%</strong></div></div><small>Active</small></div>
+                    <div><div class="sa-ring sm" style="--p:{{ $fOcc }};--c:#3B82F6" data-tilt><div><strong>{{ $fOcc }}%</strong></div></div><small>Occupancy</small></div>
+                    <div><div class="sa-ring sm" style="--p:{{ $fOnTime }};--c:#D97706" data-tilt><div><strong>{{ $fOnTime }}%</strong></div></div><small>On-Time</small></div>
+                </div>
+            </div>
+
+            <div>
+                <h4>Live Fleet Map</h4>
+                <div class="sa-fmap-wrap">
+                    <div id="saFleetMap"></div>
+                    <div class="sa-fmap-empty" id="saFleetEmpty">No vehicle locations reported yet.</div>
+                </div>
+                <div class="sa-sub">Live Vehicles</div>
+                @forelse($vehiclePts->take(4) as $v)
+                    @php $tone = $statusTone(data_get($v, 'status')); @endphp
+                    <div class="sa-veh">
+                        <span><i style="background:{{ ['green' => '#16A34A', 'red' => '#DC2626', 'amber' => '#D97706'][$tone] }}"></i>{{ data_get($v, 'route', data_get($v, 'name', 'Vehicle')) }}</span>
+                        <em class="{{ $tone }}">{{ ['green' => 'On Route', 'red' => 'Traffic', 'amber' => 'Idle'][$tone] }}</em>
+                    </div>
+                @empty
+                    <p class="sa-empty">No vehicles on the road.</p>
+                @endforelse
+            </div>
+
+        </div>
+    </div>
+
+    {{-- HOSTEL --}}
+    <div class="sa-hostel">
+        <div class="sa-panel">
+            <div class="sa-head">
+                <h3 class="sa-title">Hostel Occupancy</h3>
+                <div class="sa-head-actions">
+                    <a href="{{ $hostelUrl }}" class="sa-link">Manage Hostels</a>
+                <span class="sa-selwrap">
+                    <select class="sa-select" id="saHostelSel" aria-label="Filter by hostel">
+                        <option value="all">All Hostels</option>
+                        @foreach($hBlocks as $i => $b)
+                            <option value="{{ $i }}">{{ data_get($b, 'name') }}</option>
+                        @endforeach
+                    </select>
+                    {!! $icon('chevron-down', 14) !!}
+                </span>
+                </div>
+            </div>
+            <div class="sa-hocc">
+                <div class="sa-ring" id="saHostelRing" style="--p:{{ $hPct }};--c:#176B87" data-tilt>
+                    <div><strong id="saHostelPct">{{ $hPct }}%</strong><span>Occupied</span></div>
+                </div>
+                <div class="sa-hrows">
+                    @forelse($hBlocks as $i => $b)
+                        @php $p = (float) data_get($b, 'pct', 0); @endphp
+                        <div class="sa-hrow" data-idx="{{ $i }}" data-pct="{{ $p }}">
+                            <span>{{ data_get($b, 'name') }}</span>
+                            <strong>{{ rtrim(rtrim(number_format($p, 1), '0'), '.') }}%</strong>
+                            <div class="sa-track"><div class="sa-fill" style="width:{{ min(100, $p) }}%;--c:{{ $hColors[$i % count($hColors)] }}"></div></div>
+                        </div>
+                    @empty
+                        <p class="sa-empty">No hostel data reported yet.</p>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+
+        <div class="sa-panel">
+            <div class="sa-head"><h3 class="sa-title">Bed Availability</h3></div>
+            @foreach($hBeds as [$label, $val, $color])
+                <div class="sa-bed" style="--c:{{ $color }}">
+                    <i></i><span>{{ $label }}</span><strong>{{ number_format($val) }}</strong>
+                    <div class="sa-track"><div class="sa-fill" style="width:{{ $val / $hTotal * 100 }}%"></div></div>
+                </div>
+            @endforeach
+            <div class="sa-hfoot">
+                <a href="{{ $hostelAllocationUrl }}" class="sa-link">View Allocation {!! $icon('arrow-right', 14) !!}</a>
             </div>
         </div>
     </div>
@@ -529,12 +1038,67 @@
                 <p>Get a platform-wide summary of organizations, schools, user registrations and operational activity.</p>
             </div>
         </div>
-        <button class="sa-ai-btn" type="button">Ask SchoolNexa AI {!! $icon('arrow-right', 16) !!}</button>
+        <a class="sa-ai-btn" href="{{ $aiChatUrl }}" style="text-decoration:none">Ask SchoolNexa AI {!! $icon('arrow-right', 16) !!}</a>
     </div>
 
 </div>
 
 <script>
+    /* Calendar: working previous / next month navigation */
+    (function () {
+        var grid = document.getElementById('saCalGrid'), label = document.getElementById('saCalLabel');
+        var prev = document.getElementById('saCalPrev'), next = document.getElementById('saCalNext');
+        if (!grid || !label || !prev || !next) return;
+
+        var now = new Date(), y = now.getFullYear(), m = now.getMonth();
+        var names = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        var dows  = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+        function render() {
+            var first = new Date(y, m, 1).getDay();
+            var days  = new Date(y, m + 1, 0).getDate();
+            var html  = dows.map(function (d) { return '<span class="dow">' + d + '</span>'; }).join('');
+            for (var i = 0; i < first; i++) html += '<span></span>';
+            for (var d = 1; d <= days; d++) {
+                var today = (d === now.getDate() && m === now.getMonth() && y === now.getFullYear());
+                html += '<span class="d' + (today ? ' today' : '') + '">' + d + '</span>';
+            }
+            grid.innerHTML = html;
+            label.textContent = names[m] + ' ' + y;
+        }
+        function shift(n) {
+            m += n;
+            if (m < 0)  { m = 11; y--; }
+            if (m > 11) { m = 0;  y++; }
+            render();
+        }
+
+        prev.addEventListener('click', function () { shift(-1); });
+        next.addEventListener('click', function () { shift(1); });
+    })();
+
+    /* Hostel occupancy: "All Hostels" dropdown */
+    (function () {
+        var sel = document.getElementById('saHostelSel');
+        var ring = document.getElementById('saHostelRing');
+        var txt = document.getElementById('saHostelPct');
+        if (!sel || !ring || !txt) return;
+
+        var rows = document.querySelectorAll('.sa-hrow');
+        var overall = ring.style.getPropertyValue('--p').trim();
+
+        sel.addEventListener('change', function () {
+            var v = sel.value, p = overall;
+            rows.forEach(function (r) { r.style.display = (v === 'all' || r.getAttribute('data-idx') === v) ? '' : 'none'; });
+            if (v !== 'all') {
+                var r = document.querySelector('.sa-hrow[data-idx="' + v + '"]');
+                p = r ? r.getAttribute('data-pct') : 0;
+            }
+            ring.style.setProperty('--p', p);
+            txt.textContent = p + '%';
+        });
+    })();
+
     /* Interactive 3D icons: tilt toward the mouse, grow on hover, pop on click */
     (function () {
         if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -566,6 +1130,102 @@
             });
         });
     })();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    if (typeof Chart === 'undefined') return;
+
+    var palette = ['#3B82F6', '#16A34A', '#5B3FA3', '#D97706', '#176B87', '#DC2626'];
+    var base = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } };
+    var axes = { y: { beginAtZero: true, grid: { color: '#EEF2F6' }, ticks: { precision: 0 } }, x: { grid: { display: false } } };
+
+    function sum(a) { return a.reduce(function (t, v) { return t + (Number(v) || 0); }, 0); }
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+    function empty(canvas) { canvas.parentElement.innerHTML = '<p class="sa-empty">No data recorded yet.</p>'; }
+
+    function donut(canvasId, legendId, labels, data, colors) {
+        var c = document.getElementById(canvasId); if (!c) return;
+        if (!sum(data)) { empty(c); return; }
+        new Chart(c, { type: 'doughnut', data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderWidth: 3, borderColor: '#fff', hoverOffset: 8 }] }, options: Object.assign({}, base, { cutout: '68%' }) });
+        var lg = document.getElementById(legendId);
+        if (lg) lg.innerHTML = labels.map(function (l, i) { return '<span><i style="background:' + colors[i % colors.length] + '"></i>' + esc(l) + ' <b>' + Number(data[i]).toLocaleString() + '</b></span>'; }).join('');
+    }
+
+    donut('saOrgChart', 'saOrgLegend', @json($orgChartLabels), @json($orgChartData), palette);
+    donut('saUserChart', 'saUserLegend', ['Students', 'Staff', 'Other accounts'], @json($userDistData), ['#3B82F6', '#5B3FA3', '#CBD5E1']);
+
+    var resEl = document.getElementById('saResChart');
+    var resData = @json($resourceData);
+    if (resEl) {
+        if (!sum(resData)) empty(resEl);
+        else new Chart(resEl, { type: 'bar', data: { labels: @json($resourceLabels), datasets: [{ data: resData, backgroundColor: palette, borderRadius: 8 }] }, options: Object.assign({}, base, { scales: axes }) });
+    }
+
+    var trend = @json($userGrowth);
+    var trendEl = document.getElementById('saTrendChart');
+    if (trendEl) {
+        var tdata = trend.map(function (x) { return x.total; });
+        if (!sum(tdata)) empty(trendEl);
+        else new Chart(trendEl, { type: 'line', data: { labels: trend.map(function (x) { return x.label; }), datasets: [{ label: 'New users', data: tdata, borderColor: '#176B87', backgroundColor: 'rgba(23,107,135,.14)', fill: true, tension: .35, pointRadius: 5, pointBackgroundColor: '#fff', pointBorderWidth: 2 }] }, options: Object.assign({}, base, { scales: axes }) });
+    }
+
+    /* ---- Attendance donut with Students / Teachers / Staff tabs ---- */
+    var attGroups = @json($attGroups);
+    var attEl = document.getElementById('saAttChart');
+    if (attEl) {
+        var attColors = ['#176B87', '#3B82F6', '#D97706', '#DC2626'];
+        var attChart = new Chart(attEl, { type: 'doughnut', data: { labels: ['Present', 'Absent', 'Late', 'Emergency'], datasets: [{ data: [0, 0, 0, 0], backgroundColor: attColors, borderWidth: 3, borderColor: '#fff', hoverOffset: 6 }] }, options: Object.assign({}, base, { cutout: '48%' }) });
+        var setTxt = function (id, v) { var e = document.getElementById(id); if (e) e.textContent = Number(v).toLocaleString(); };
+        var showGroup = function (g) {
+            var d = attGroups[g] || { present: 0, absent: 0, late: 0, emergency: 0 };
+            attChart.data.datasets[0].data = [d.present, d.absent, d.late, d.emergency];
+            attChart.update();
+            setTxt('attPresentB', d.present); setTxt('attAbsentB', d.absent); setTxt('attAbsent', d.absent); setTxt('attLate', d.late); setTxt('attEmergency', d.emergency);
+            var none = (d.present + d.absent + d.late + d.emergency) === 0;
+            document.getElementById('attEmpty').style.display = none ? 'grid' : 'none';
+            document.querySelectorAll('.sa-bubble').forEach(function (b) { b.style.display = none ? 'none' : 'grid'; });
+        };
+        document.querySelectorAll('#attTabs .sa-tab').forEach(function (t) {
+            t.addEventListener('click', function () {
+                document.querySelectorAll('#attTabs .sa-tab').forEach(function (x) { x.classList.remove('on'); });
+                t.classList.add('on'); showGroup(t.getAttribute('data-g'));
+            });
+        });
+        showGroup('students');
+    }
+
+    var recEl = document.getElementById('saRecChart');
+    var recData = @json($recordData);
+    if (recEl) {
+        if (!sum(recData)) empty(recEl);
+        else new Chart(recEl, { type: 'bar', data: { labels: @json($recordLabels), datasets: [{ data: recData, backgroundColor: ['#3B82F6', '#16A34A', '#D97706', '#DC2626'], borderRadius: 8 }] }, options: Object.assign({}, base, { indexAxis: 'y', scales: { x: { beginAtZero: true, grid: { color: '#EEF2F6' }, ticks: { precision: 0 } }, y: { grid: { display: false } } } }) });
+    }
+})();
+</script>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* Live fleet map: vehicle positions coloured by status */
+(function () {
+    var el = document.getElementById('saFleetMap');
+    if (!el || typeof L === 'undefined') return;
+    var pts = (@json($vehiclePts->values()->all())).filter(function (p) { return isFinite(parseFloat(p.lat)) && isFinite(parseFloat(p.lng)); });
+    var colors = { live: '#16A34A', delayed: '#DC2626', idle: '#D97706' };
+    var map = L.map(el, { scrollWheelZoom: false, zoomControl: true, attributionControl: false }).setView([20.59, 78.96], 4);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+    var layers = pts.map(function (p) {
+        var c = colors[String(p.status || 'live').toLowerCase()] || colors.live;
+        return L.circleMarker([parseFloat(p.lat), parseFloat(p.lng)], { radius: 7, color: '#fff', weight: 2, fillColor: c, fillOpacity: .95 })
+            .bindPopup('<b>' + esc(p.route || p.name || 'Vehicle') + '</b><br>' + esc(p.status || 'live')).addTo(map);
+    });
+    if (!layers.length) { document.getElementById('saFleetEmpty').style.display = 'grid'; }
+    else if (layers.length === 1) map.setView(layers[0].getLatLng(), 13);
+    else map.fitBounds(L.featureGroup(layers).getBounds().pad(.25));
+    setTimeout(function () { map.invalidateSize(); }, 250);
+})();
 </script>
 
 @endsection

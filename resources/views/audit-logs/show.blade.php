@@ -1,0 +1,8 @@
+@extends('layouts.schoolnexa')
+@section('content')
+@include('audit-logs._style')
+<div class="sx-page"><div class="sx-head"><div><h1 class="sx-title">Audit Event #{{$log->id}}</h1><p class="sx-sub">Detailed record of a system activity.</p></div><div class="sx-actions"><a class="sx-btn" href="{{route('audit-logs.dashboard')}}">Back to Audit Logs Dashboard</a><a class="sx-btn" href="{{route('audit-logs.index')}}">All Events</a></div></div>
+<section class="sx-panel"><h3>Event Information</h3><div class="sx-form">@foreach(['Date and Time'=>$log->created_at,'User'=>$log->actor_name??'System','Email'=>$log->actor_email,'Action'=>$log->action,'Entity Type'=>$log->entity_type,'Entity ID'=>$log->entity_id,'School ID'=>$log->school_id,'IP Address'=>$log->ip_address,'Request ID'=>$log->request_id] as $label=>$value)<div><div class="sx-label">{{$label}}</div><div style="font-size:13px;margin-top:5px">{{ $value ?: '—' }}</div></div>@endforeach</div></section>
+<div class="sx-grid" style="grid-template-columns:1fr 1fr"><section class="sx-panel"><h3>Previous Values</h3><pre style="white-space:pre-wrap;font-size:12px;background:#F8FAFC;padding:12px;border-radius:8px">{{json_encode(json_decode($log->old_values,true)??$log->old_values,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES)}}</pre></section><section class="sx-panel"><h3>New Values</h3><pre style="white-space:pre-wrap;font-size:12px;background:#F8FAFC;padding:12px;border-radius:8px">{{json_encode(json_decode($log->new_values,true)??$log->new_values,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES)}}</pre></section></div>
+<section class="sx-panel"><h3>Client Information</h3><div style="font-size:12px;overflow-wrap:anywhere">{{$log->user_agent??'Not recorded'}}</div></section></div>
+@endsection

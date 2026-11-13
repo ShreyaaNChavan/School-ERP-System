@@ -1,0 +1,7 @@
+@extends('layouts.schoolnexa')
+@section('content')
+@include('workflow-builder._style')
+<div class="sx-page"><div class="sx-head"><div><h1 class="sx-title">All Workflows</h1><p class="sx-sub">Browse, review and manage your school's workflow definitions.</p></div><div class="sx-actions"><a class="sx-btn" href="{{route('workflow-builder.dashboard')}}">Back to Workflow Builder Dashboard</a><a class="sx-btn primary" href="{{route('workflow-builder.create')}}">+ Create Workflow</a></div></div>
+@if(session('success'))<div class="sx-alert">{{session('success')}}</div>@endif
+<section class="sx-panel"><div class="sx-table-wrap"><table class="sx-table"><thead><tr><th>WORKFLOW</th><th>CREATED</th><th>LAST UPDATED</th><th>RUNS</th><th>STATUS</th><th>ACTIONS</th></tr></thead><tbody>@forelse($workflows as $w)<tr><td><strong>{{$w->name}}</strong></td><td>{{$w->created_at}}</td><td>{{$w->updated_at}}</td><td>{{$runCounts[$w->id]??0}}</td><td><span class="sx-pill {{$w->is_active?'ok':'off'}}">{{$w->is_active?'Active':'Inactive'}}</span></td><td><div class="sx-actions"><a class="sx-btn" href="{{route('workflow-builder.show',$w->id)}}">View</a><a class="sx-btn" href="{{route('workflow-builder.edit',$w->id)}}">Edit</a><form method="POST" action="{{route('workflow-builder.toggle',$w->id)}}">@csrf @method('PATCH')<button class="sx-btn">{{$w->is_active?'Deactivate':'Activate'}}</button></form></div></td></tr>@empty<tr><td colspan="6" class="sx-empty">No workflows found.</td></tr>@endforelse</tbody></table></div><div>{{$workflows->links()}}</div></section></div>
+@endsection

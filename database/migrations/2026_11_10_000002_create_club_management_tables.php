@@ -1,0 +1,7 @@
+<?php
+use Illuminate\Database\Migrations\Migration; use Illuminate\Database\Schema\Blueprint; use Illuminate\Support\Facades\Schema;
+return new class extends Migration { public function up(): void {
+ Schema::create('clubs', function(Blueprint $t){$t->id();$t->foreignId('school_id')->constrained()->cascadeOnDelete();$t->foreignId('campus_id')->nullable()->constrained()->nullOnDelete();$t->foreignId('faculty_coordinator_id')->nullable()->constrained('staff_profiles')->nullOnDelete();$t->string('name');$t->string('category',80)->nullable();$t->text('description')->nullable();$t->date('founded_on')->nullable();$t->string('status',30)->default('active');$t->timestamps();$t->index(['school_id','name']);});
+ Schema::create('club_members',function(Blueprint $t){$t->id();$t->foreignId('club_id')->constrained('clubs')->cascadeOnDelete();$t->foreignId('student_id')->constrained('student_profiles')->cascadeOnDelete();$t->string('role',50)->default('member');$t->date('joined_on')->nullable();$t->string('status',30)->default('active');$t->timestamps();$t->unique(['club_id','student_id']);});
+ Schema::create('club_activities',function(Blueprint $t){$t->id();$t->foreignId('club_id')->constrained('clubs')->cascadeOnDelete();$t->string('title');$t->text('description')->nullable();$t->dateTime('starts_at')->nullable();$t->string('venue')->nullable();$t->string('status',30)->default('planned');$t->timestamps();});
+} public function down(): void {Schema::dropIfExists('club_activities');Schema::dropIfExists('club_members');Schema::dropIfExists('clubs');}};
