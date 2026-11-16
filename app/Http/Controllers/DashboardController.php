@@ -128,7 +128,8 @@ class DashboardController extends Controller
             $copyStatuses = DB::table('library_copies')->select('status', DB::raw('COUNT(*) AS total'))->groupBy('status')->get();
             foreach ($copyStatuses as $statusRow) {
                 $status = strtolower((string) $statusRow->status);
-                if (in_array($status, ['available', 'issued', 'reserved'], true)) $libraryStats[$status] = (int) $statusRow->total;
+                if (in_array($status, ['available', 'issued', 'reserved'], true))
+                    $libraryStats[$status] = (int) $statusRow->total;
             }
             if (Schema::hasTable('library_loans')) {
                 $topBooks = DB::table('library_loans')->join('library_copies', 'library_copies.id', '=', 'library_loans.library_copy_id')
@@ -149,14 +150,18 @@ class DashboardController extends Controller
             $vehicleStatuses = DB::table('transport_vehicles')->select('status', DB::raw('COUNT(*) AS total'))->groupBy('status')->get();
             foreach ($vehicleStatuses as $vehicleStatus) {
                 $status = strtolower((string) $vehicleStatus->status);
-                if (in_array($status, ['active', 'running'], true)) $fleetStats['active'] += (int) $vehicleStatus->total;
-                elseif (in_array($status, ['maintenance', 'service', 'under_maintenance'], true)) $fleetStats['service'] += (int) $vehicleStatus->total;
-                elseif (in_array($status, ['offline', 'inactive'], true)) $fleetStats['offline'] += (int) $vehicleStatus->total;
-                else $fleetStats['idle'] += (int) $vehicleStatus->total;
+                if (in_array($status, ['active', 'running'], true))
+                    $fleetStats['active'] += (int) $vehicleStatus->total;
+                elseif (in_array($status, ['maintenance', 'service', 'under_maintenance'], true))
+                    $fleetStats['service'] += (int) $vehicleStatus->total;
+                elseif (in_array($status, ['offline', 'inactive'], true))
+                    $fleetStats['offline'] += (int) $vehicleStatus->total;
+                else
+                    $fleetStats['idle'] += (int) $vehicleStatus->total;
             }
             $routeStatus = DB::table('transport_vehicles')->orderBy('registration_number')->limit(6)
                 ->get(['registration_number', 'vehicle_type', 'status'])
-                ->map(fn ($v) => ['name' => $v->registration_number, 'status' => strtolower((string) $v->status), 'onboard' => '—', 'eta' => '—', 'speed' => '—']);
+                ->map(fn($v) => ['name' => $v->registration_number, 'status' => strtolower((string) $v->status), 'onboard' => '—', 'eta' => '—', 'speed' => '—']);
         }
 
         $hostelStats = ['occupied' => 0, 'available' => 0, 'reserved' => 0, 'maintenance' => 0];
@@ -164,14 +169,19 @@ class DashboardController extends Controller
         if (Schema::hasTable('hostels') && Schema::hasTable('hostel_rooms') && Schema::hasTable('hostel_beds')) {
             $hostelBlocks = DB::table('hostels')->leftJoin('hostel_rooms', 'hostel_rooms.hostel_id', '=', 'hostels.id')
                 ->leftJoin('hostel_beds', 'hostel_beds.hostel_room_id', '=', 'hostel_rooms.id')
-                ->select('hostels.id', 'hostels.name', DB::raw("SUM(CASE WHEN LOWER(hostel_beds.status) = 'occupied' THEN 1 ELSE 0 END) AS occupied"),
-                    DB::raw('COUNT(hostel_beds.id) AS total_beds'))
+                ->select(
+                    'hostels.id',
+                    'hostels.name',
+                    DB::raw("SUM(CASE WHEN LOWER(hostel_beds.status) = 'occupied' THEN 1 ELSE 0 END) AS occupied"),
+                    DB::raw('COUNT(hostel_beds.id) AS total_beds')
+                )
                 ->groupBy('hostels.id', 'hostels.name')->orderBy('hostels.name')->get()
-                ->map(fn ($h) => ['name' => $h->name, 'pct' => (int) $h->total_beds > 0 ? round((int) $h->occupied * 100 / (int) $h->total_beds, 1) : 0]);
+                ->map(fn($h) => ['name' => $h->name, 'pct' => (int) $h->total_beds > 0 ? round((int) $h->occupied * 100 / (int) $h->total_beds, 1) : 0]);
             $bedRows = DB::table('hostel_beds')->select('status', DB::raw('COUNT(*) AS total'))->groupBy('status')->get();
             foreach ($bedRows as $bedRow) {
                 $status = strtolower((string) $bedRow->status);
-                if (array_key_exists($status, $hostelStats)) $hostelStats[$status] = (int) $bedRow->total;
+                if (array_key_exists($status, $hostelStats))
+                    $hostelStats[$status] = (int) $bedRow->total;
             }
             // Active hostel allocations are the authoritative occupied-bed count.
             if (Schema::hasTable('hostel_allocations')) {
@@ -182,25 +192,42 @@ class DashboardController extends Controller
         $mapPoints = collect();
         if (Schema::hasTable('campuses')) {
             $mapPoints = DB::table('campuses')->whereNotNull('latitude')->whereNotNull('longitude')
-                ->get(['name', 'latitude', 'longitude'])->map(fn ($c) => [
-                    'name' => $c->name, 'lat' => (float) $c->latitude, 'lng' => (float) $c->longitude,
-                    'type' => 'campus', 'status' => 'live', 'route' => 'Campus location',
+                ->get(['name', 'latitude', 'longitude'])->map(fn($c) => [
+                    'name' => $c->name,
+                    'lat' => (float) $c->latitude,
+                    'lng' => (float) $c->longitude,
+                    'type' => 'campus',
+                    'status' => 'live',
+                    'route' => 'Campus location',
                 ]);
         }
 
-        $resolveDashboardUrl = fn (array $names, string $fallback) => collect($names)
-            ->first(fn ($name) => \Illuminate\Support\Facades\Route::has($name))
-            ? route(collect($names)->first(fn ($name) => \Illuminate\Support\Facades\Route::has($name)))
+        $resolveDashboardUrl = fn(array $names, string $fallback) => collect($names)
+            ->first(fn($name) => \Illuminate\Support\Facades\Route::has($name))
+            ? route(collect($names)->first(fn($name) => \Illuminate\Support\Facades\Route::has($name)))
             : url($fallback);
         $calendarUrl = $resolveDashboardUrl(['events.calendar', 'events.index', 'events.dashboard', 'caspa.events.index'], '/events');
         $aiChatUrl = $resolveDashboardUrl(['caspa.chat.index', 'caspa-chat.index', 'chat.index', 'caspa.chat', 'ai.chat'], '/caspa-chat');
         $hostelUrl = $resolveDashboardUrl(['hostels.index', 'hostel.dashboard', 'hostels.dashboard', 'hostel.index'], '/hostels');
         $hostelAllocationUrl = $resolveDashboardUrl(['hostel.allocations.index', 'hostel-allocations.index', 'hostels.allocations', 'hostel.allocations'], '/hostel-allocations');
 
-        return view('dashboard', compact(
-            'stats', 'modules', 'organizationSchoolData', 'userGrowth', 'attendanceStats',
-            'libraryStats', 'topBooks', 'fleetStats', 'routeStatus', 'hostelStats',
-            'hostelBlocks', 'mapPoints', 'calendarUrl', 'aiChatUrl', 'hostelUrl', 'hostelAllocationUrl'
+        return view('dashboards.admin', compact(
+            'stats',
+            'modules',
+            'organizationSchoolData',
+            'userGrowth',
+            'attendanceStats',
+            'libraryStats',
+            'topBooks',
+            'fleetStats',
+            'routeStatus',
+            'hostelStats',
+            'hostelBlocks',
+            'mapPoints',
+            'calendarUrl',
+            'aiChatUrl',
+            'hostelUrl',
+            'hostelAllocationUrl'
         ));
     }
 
@@ -271,14 +298,16 @@ class DashboardController extends Controller
             if ($selectedCampus && Schema::hasTable('campuses')) {
                 $validCampus = DB::table('campuses')->where('id', $selectedCampus)
                     ->where('school_id', $schoolId)->exists();
-                if (!$validCampus) $selectedCampus = $campusId;
+                if (!$validCampus)
+                    $selectedCampus = $campusId;
             }
 
             $academicYearId = !empty($filters['academic_year_id']) ? (int) $filters['academic_year_id'] : null;
             if ($academicYearId && Schema::hasTable('academic_years')) {
                 $validYear = DB::table('academic_years')->where('id', $academicYearId)
                     ->where('school_id', $schoolId)->exists();
-                if (!$validYear) $academicYearId = null;
+                if (!$validYear)
+                    $academicYearId = null;
             }
 
             $stats = array_merge($stats, $this->principalStats($schoolId, $selectedCampus, $academicYearId));
@@ -292,8 +321,15 @@ class DashboardController extends Controller
 
             if ($requiredRole === 'PRINCIPAL') {
                 return view('dashboards.principal', array_merge(
-                    compact('stats', 'recentItems', 'upcomingItems', 'campuses', 'academicYears',
-                        'selectedCampusId', 'selectedAcademicYearId'),
+                    compact(
+                        'stats',
+                        'recentItems',
+                        'upcomingItems',
+                        'campuses',
+                        'academicYears',
+                        'selectedCampusId',
+                        'selectedAcademicYearId'
+                    ),
                     $analytics
                 ));
             }
@@ -329,7 +365,8 @@ class DashboardController extends Controller
                     if (Schema::hasColumn('teaching_assignments', 'academic_year_id') && Schema::hasTable('academic_years')) {
                         $activeYearId = DB::table('academic_years')->where('school_id', $schoolId)
                             ->where('status', 'active')->value('id');
-                        if ($activeYearId) $allocationQuery->where('ta.academic_year_id', $activeYearId);
+                        if ($activeYearId)
+                            $allocationQuery->where('ta.academic_year_id', $activeYearId);
                     }
                     $teacherAssignments = (clone $allocationQuery)->get();
 
@@ -340,15 +377,22 @@ class DashboardController extends Controller
                             ->join('sections as sec', 'sec.id', '=', 'ta.section_id')
                             ->leftJoin('subjects as sub', 'sub.id', '=', 'cs.subject_id')
                             ->where('ta.staff_profile_id', $teacherProfile->id);
-                        if ($schoolId && Schema::hasColumn('school_classes', 'school_id')) $classQuery->where('sc.school_id', $schoolId);
+                        if ($schoolId && Schema::hasColumn('school_classes', 'school_id'))
+                            $classQuery->where('sc.school_id', $schoolId);
                         if ($teacherAssignments->isNotEmpty() && Schema::hasColumn('teaching_assignments', 'academic_year_id')) {
                             $yearIds = $teacherAssignments->pluck('academic_year_id')->filter()->unique()->values();
-                            if ($yearIds->isNotEmpty()) $classQuery->whereIn('ta.academic_year_id', $yearIds);
+                            if ($yearIds->isNotEmpty())
+                                $classQuery->whereIn('ta.academic_year_id', $yearIds);
                         }
                         $teacherClasses = $classQuery->select(
-                            'ta.id as allocation_id', 'ta.academic_year_id', 'ta.section_id',
-                            'cs.id as class_subject_id', 'cs.subject_id', 'sc.id as class_id',
-                            'sc.name as class_name', 'sec.name as section_name',
+                            'ta.id as allocation_id',
+                            'ta.academic_year_id',
+                            'ta.section_id',
+                            'cs.id as class_subject_id',
+                            'cs.subject_id',
+                            'sc.id as class_id',
+                            'sc.name as class_name',
+                            'sec.name as section_name',
                             'sub.name as subject_name'
                         )->distinct()->orderBy('sc.name')->orderBy('sec.name')->get();
                     }
@@ -387,9 +431,12 @@ class DashboardController extends Controller
                     if ($tt) {
                         if (Schema::hasColumn('timetable_entries', 'timetable_id') && Schema::hasTable('timetables')) {
                             $tt->leftJoin('timetables as tm', 'tm.id', '=', 'te.timetable_id');
-                            if ($schoolId && Schema::hasColumn('timetables', 'school_id')) $tt->where('tm.school_id', $schoolId);
-                            if ($campusId && Schema::hasColumn('timetables', 'campus_id')) $tt->where('tm.campus_id', $campusId);
-                            if (Schema::hasColumn('timetables', 'status')) $tt->whereIn('tm.status', ['published', 'active']);
+                            if ($schoolId && Schema::hasColumn('timetables', 'school_id'))
+                                $tt->where('tm.school_id', $schoolId);
+                            if ($campusId && Schema::hasColumn('timetables', 'campus_id'))
+                                $tt->where('tm.campus_id', $campusId);
+                            if (Schema::hasColumn('timetables', 'status'))
+                                $tt->whereIn('tm.status', ['published', 'active']);
                         }
                         $ttRows = $tt->limit(250)->get(['te.*']);
                         $todayName = strtolower(now()->format('l'));
@@ -404,7 +451,8 @@ class DashboardController extends Controller
                             return true;
                         })->values()->map(function ($row) use ($teacherClasses) {
                             $allocation = null;
-                            if (isset($row->teaching_assignment_id)) $allocation = $teacherClasses->firstWhere('allocation_id', $row->teaching_assignment_id);
+                            if (isset($row->teaching_assignment_id))
+                                $allocation = $teacherClasses->firstWhere('allocation_id', $row->teaching_assignment_id);
                             $class = $allocation->class_name ?? ($row->class_name ?? 'Assigned class');
                             $section = $allocation->section_name ?? ($row->section_name ?? '');
                             $subject = $allocation->subject_name ?? ($row->subject_name ?? 'Teaching period');
@@ -426,10 +474,11 @@ class DashboardController extends Controller
                 // Assignment visibility is restricted to columns that identify the assigned teacher.
                 if (Schema::hasTable('assignments')) {
                     $assignmentTeacherColumn = collect(['staff_profile_id', 'teacher_id', 'created_by'])
-                        ->first(fn ($column) => Schema::hasColumn('assignments', $column));
+                        ->first(fn($column) => Schema::hasColumn('assignments', $column));
                     if ($assignmentTeacherColumn) {
                         $assignmentQuery = DB::table('assignments')->where($assignmentTeacherColumn, $assignmentTeacherColumn === 'created_by' ? $user->id : $teacherProfile->id);
-                        if ($schoolId && Schema::hasColumn('assignments', 'school_id')) $assignmentQuery->where('school_id', $schoolId);
+                        if ($schoolId && Schema::hasColumn('assignments', 'school_id'))
+                            $assignmentQuery->where('school_id', $schoolId);
                         $assignmentRows = (clone $assignmentQuery)->latest('id')->limit(30)->get();
                         $teacherAssignmentList = $assignmentRows->map(function ($row) {
                             return (object) [
@@ -447,7 +496,7 @@ class DashboardController extends Controller
                                 ? (clone $submissionQuery)->whereNull('reviewed_at')->count()
                                 : (Schema::hasColumn('assignment_submissions', 'status') ? (clone $submissionQuery)->whereIn('status', ['submitted', 'pending', 'under_review'])->count() : 0);
                         }
-                        $upcomingItems = $teacherAssignmentList->filter(fn ($item) => $item->due_date && \Carbon\Carbon::parse($item->due_date)->greaterThanOrEqualTo(today()))->take(6)->values();
+                        $upcomingItems = $teacherAssignmentList->filter(fn($item) => $item->due_date && \Carbon\Carbon::parse($item->due_date)->greaterThanOrEqualTo(today()))->take(6)->values();
                         $recentItems = $teacherAssignmentList->take(8)->values();
                     }
                 }
@@ -457,7 +506,8 @@ class DashboardController extends Controller
                     $attendanceQuery = DB::table('student_attendance as sa')
                         ->join('attendance_sessions as ats', 'ats.id', '=', 'sa.attendance_session_id')
                         ->whereIn('ats.section_id', $sectionIds);
-                    if ($schoolId) $attendanceQuery->where('ats.school_id', $schoolId);
+                    if ($schoolId)
+                        $attendanceQuery->where('ats.school_id', $schoolId);
                     $todayAttendance = (clone $attendanceQuery)->whereDate('ats.attendance_date', today());
                     foreach (['present', 'absent', 'late'] as $status) {
                         $teacherAttendance[$status] = (clone $todayAttendance)->whereRaw('LOWER(sa.status) = ?', [$status])->count();
@@ -487,7 +537,8 @@ class DashboardController extends Controller
                     $examQuery = DB::table('exam_subjects as es')
                         ->join('examinations as ex', 'ex.id', '=', 'es.examination_id')
                         ->whereIn('es.section_id', $sectionIds);
-                    if ($schoolId) $examQuery->where('ex.school_id', $schoolId);
+                    if ($schoolId)
+                        $examQuery->where('ex.school_id', $schoolId);
                     $teacherExams = (clone $examQuery)->orderBy('es.exam_date')->limit(8)
                         ->get(['es.id', 'es.exam_date', 'es.start_time', 'es.maximum_marks', 'ex.name as examination_name', 'ex.status']);
                     if (Schema::hasTable('exam_results')) {
@@ -496,13 +547,15 @@ class DashboardController extends Controller
                             ->whereIn('es.section_id', $sectionIds)
                             ->whereNotNull('er.marks_obtained')->get(['er.marks_obtained', 'er.grade', 'es.maximum_marks']);
                         if ($results->isNotEmpty()) {
-                            $classPerformance = collect([ (object) [
-                                'label' => 'My assigned sections',
-                                'average' => round($results->avg(fn ($r) => $r->maximum_marks > 0 ? ($r->marks_obtained / $r->maximum_marks) * 100 : 0), 1),
-                                'results' => $results->count(),
-                            ]]);
-                            $gradeDistribution = $results->groupBy(fn ($r) => $r->grade ?: 'Ungraded')
-                                ->map(fn ($items, $grade) => (object) ['grade' => $grade, 'count' => $items->count()])->values();
+                            $classPerformance = collect([
+                                (object) [
+                                    'label' => 'My assigned sections',
+                                    'average' => round($results->avg(fn($r) => $r->maximum_marks > 0 ? ($r->marks_obtained / $r->maximum_marks) * 100 : 0), 1),
+                                    'results' => $results->count(),
+                                ]
+                            ]);
+                            $gradeDistribution = $results->groupBy(fn($r) => $r->grade ?: 'Ungraded')
+                                ->map(fn($items, $grade) => (object) ['grade' => $grade, 'count' => $items->count()])->values();
                         }
                     }
                 }
@@ -510,10 +563,11 @@ class DashboardController extends Controller
                 // Lesson plans can be keyed by staff profile or by the authenticated creator.
                 if (Schema::hasTable('lesson_plans')) {
                     $lessonTeacherColumn = collect(['staff_profile_id', 'teacher_id', 'created_by', 'user_id'])
-                        ->first(fn ($column) => Schema::hasColumn('lesson_plans', $column));
+                        ->first(fn($column) => Schema::hasColumn('lesson_plans', $column));
                     if ($lessonTeacherColumn) {
                         $lessonQuery = DB::table('lesson_plans')->where($lessonTeacherColumn, in_array($lessonTeacherColumn, ['created_by', 'user_id'], true) ? $user->id : $teacherProfile->id);
-                        if ($schoolId && Schema::hasColumn('lesson_plans', 'school_id')) $lessonQuery->where('school_id', $schoolId);
+                        if ($schoolId && Schema::hasColumn('lesson_plans', 'school_id'))
+                            $lessonQuery->where('school_id', $schoolId);
                         $teacherLessonPlans = $lessonQuery->latest('id')->limit(6)->get();
                     }
                 }
@@ -521,15 +575,22 @@ class DashboardController extends Controller
                 if (Schema::hasTable('announcements')) {
                     $annQuery = DB::table('announcements')->where('school_id', $schoolId)
                         ->whereIn('status', ['published', 'active'])
-                        ->where(function ($q) { $q->whereNull('published_at')->orWhere('published_at', '<=', now()); });
-                    if (Schema::hasColumn('announcements', 'expires_at')) $annQuery->where(function ($q) { $q->whereNull('expires_at')->orWhere('expires_at', '>=', now()); });
-                    if ($campusId && Schema::hasColumn('announcements', 'campus_id')) $annQuery->where(function ($q) use ($campusId) { $q->whereNull('campus_id')->orWhere('campus_id', $campusId); });
+                        ->where(function ($q) {
+                            $q->whereNull('published_at')->orWhere('published_at', '<=', now()); });
+                    if (Schema::hasColumn('announcements', 'expires_at'))
+                        $annQuery->where(function ($q) {
+                            $q->whereNull('expires_at')->orWhere('expires_at', '>=', now()); });
+                    if ($campusId && Schema::hasColumn('announcements', 'campus_id'))
+                        $annQuery->where(function ($q) use ($campusId) {
+                            $q->whereNull('campus_id')->orWhere('campus_id', $campusId); });
                     $teacherAnnouncements = $annQuery->latest('published_at')->limit(5)->get();
                 }
                 if (Schema::hasTable('events')) {
                     $eventQuery = DB::table('events')->where('school_id', $schoolId)
                         ->whereDate('starts_at', '>=', today());
-                    if ($campusId && Schema::hasColumn('events', 'campus_id')) $eventQuery->where(function ($q) use ($campusId) { $q->whereNull('campus_id')->orWhere('campus_id', $campusId); });
+                    if ($campusId && Schema::hasColumn('events', 'campus_id'))
+                        $eventQuery->where(function ($q) use ($campusId) {
+                            $q->whereNull('campus_id')->orWhere('campus_id', $campusId); });
                     $teacherEvents = $eventQuery->orderBy('starts_at')->limit(5)->get();
                 }
             }
@@ -540,10 +601,24 @@ class DashboardController extends Controller
             $teacherTasks = $upcomingItems;
 
             return view('dashboards.teacher', compact(
-                'stats', 'recentItems', 'upcomingItems', 'teacherProfile', 'teacherProfileName',
-                'teacherAssignments', 'teacherClasses', 'todayTimetable', 'teacherAttendance',
-                'attendanceTrend', 'teacherAssignmentList', 'teacherExams', 'classPerformance',
-                'gradeDistribution', 'teacherLessonPlans', 'teacherAnnouncements', 'teacherEvents', 'teacherTasks'
+                'stats',
+                'recentItems',
+                'upcomingItems',
+                'teacherProfile',
+                'teacherProfileName',
+                'teacherAssignments',
+                'teacherClasses',
+                'todayTimetable',
+                'teacherAttendance',
+                'attendanceTrend',
+                'teacherAssignmentList',
+                'teacherExams',
+                'classPerformance',
+                'gradeDistribution',
+                'teacherLessonPlans',
+                'teacherAnnouncements',
+                'teacherEvents',
+                'teacherTasks'
             ));
         }
 
@@ -595,446 +670,463 @@ class DashboardController extends Controller
                     ->pluck('student_id')->unique()->values();
 
                 $stats['children'] = $childIds->count();
-                    $children = DB::table('student_profiles')
-                        ->whereIn('id', $childIds)
-                        ->whereNull('deleted_at')
-                        ->orderBy('first_name')->orderBy('last_name')
-                        ->get(['id', 'school_id', 'campus_id', 'admission_number', 'first_name', 'middle_name', 'last_name', 'photo_path', 'status']);
-                    $stats['children'] = $children->count();
+                $children = DB::table('student_profiles')
+                    ->whereIn('id', $childIds)
+                    ->whereNull('deleted_at')
+                    ->orderBy('first_name')->orderBy('last_name')
+                    ->get(['id', 'school_id', 'campus_id', 'admission_number', 'first_name', 'middle_name', 'last_name', 'photo_path', 'status']);
+                $stats['children'] = $children->count();
 
-                    // Every child comes exclusively from this guardian's pivot links.
-                    // Build an independent dashboard payload for each linked student.
-                    $baseSchoolId = $schoolId;
-                    $baseCampusId = $campusId;
-                    $childData = collect();
+                // Every child comes exclusively from this guardian's pivot links.
+                // Build an independent dashboard payload for each linked student.
+                $baseSchoolId = $schoolId;
+                $baseCampusId = $campusId;
+                $childData = collect();
 
-                    foreach ($children as $selectedChild) {
-                        $childAttendance = ['present' => 0, 'absent' => 0, 'late' => 0, 'total' => 0, 'rate' => 0];
-                        $childFees = ['total' => 0, 'paid' => 0, 'balance' => 0, 'overdue' => 0];
-                        $childAcademic = ['average' => null, 'upcoming_exams' => 0, 'pending_assignments' => 0];
-                        $childEnrollment = null;
-                        $childRecentResults = collect();
-                        $childAssignments = collect();
-                        $childAnnouncements = collect();
-                        $childEvents = collect();
-                        $childPayments = collect();
-                        $childAttendanceDays = collect();
-                        $childUpcomingExams = collect();
-                        $childDocuments = collect();
-                        $childTransport = null;
-                        $childBorrowedBooks = collect();
-                        $childLibraryStats = ['available' => null, 'total' => null, 'availability_rate' => null];
-                        $childAchievements = collect();
-                        $childAttendanceTrend = collect();
-                        $childPerformance = ['attendance' => null, 'marks' => null, 'homework' => null, 'engagement' => null];
+                foreach ($children as $selectedChild) {
+                    $childAttendance = ['present' => 0, 'absent' => 0, 'late' => 0, 'total' => 0, 'rate' => 0];
+                    $childFees = ['total' => 0, 'paid' => 0, 'balance' => 0, 'overdue' => 0];
+                    $childAcademic = ['average' => null, 'upcoming_exams' => 0, 'pending_assignments' => 0];
+                    $childEnrollment = null;
+                    $childRecentResults = collect();
+                    $childAssignments = collect();
+                    $childAnnouncements = collect();
+                    $childEvents = collect();
+                    $childPayments = collect();
+                    $childAttendanceDays = collect();
+                    $childUpcomingExams = collect();
+                    $childDocuments = collect();
+                    $childTransport = null;
+                    $childBorrowedBooks = collect();
+                    $childLibraryStats = ['available' => null, 'total' => null, 'availability_rate' => null];
+                    $childAchievements = collect();
+                    $childAttendanceTrend = collect();
+                    $childPerformance = ['attendance' => null, 'marks' => null, 'homework' => null, 'engagement' => null];
 
-                        $studentId = (int) $selectedChild->id;
-                        $schoolId = $selectedChild->school_id ? (int) $selectedChild->school_id : $baseSchoolId;
-                        $campusId = $selectedChild->campus_id ? (int) $selectedChild->campus_id : $baseCampusId;
+                    $studentId = (int) $selectedChild->id;
+                    $schoolId = $selectedChild->school_id ? (int) $selectedChild->school_id : $baseSchoolId;
+                    $campusId = $selectedChild->campus_id ? (int) $selectedChild->campus_id : $baseCampusId;
 
-                        if (Schema::hasTable('student_enrollments')) {
-                            $enrollmentQuery = DB::table('student_enrollments')
-                                ->where('student_id', $studentId)->where('status', 'active')
-                                ->orderByDesc('academic_year_id');
-                            $childEnrollment = $enrollmentQuery->first();
-                            if ($childEnrollment && Schema::hasTable('school_classes')) {
-                                $class = DB::table('school_classes')->where('id', $childEnrollment->school_class_id)->value('name');
-                                $childEnrollment->class_name = $class;
-                                $childEnrollment->section_name = Schema::hasTable('sections')
-                                    ? DB::table('sections')->where('id', $childEnrollment->section_id)->value('name') : null;
-                            }
+                    if (Schema::hasTable('student_enrollments')) {
+                        $enrollmentQuery = DB::table('student_enrollments')
+                            ->where('student_id', $studentId)->where('status', 'active')
+                            ->orderByDesc('academic_year_id');
+                        $childEnrollment = $enrollmentQuery->first();
+                        if ($childEnrollment && Schema::hasTable('school_classes')) {
+                            $class = DB::table('school_classes')->where('id', $childEnrollment->school_class_id)->value('name');
+                            $childEnrollment->class_name = $class;
+                            $childEnrollment->section_name = Schema::hasTable('sections')
+                                ? DB::table('sections')->where('id', $childEnrollment->section_id)->value('name') : null;
                         }
+                    }
 
-                        // Attendance for the selected child only.
-                        if (Schema::hasTable('student_attendance')) {
-                            $attendanceQuery = DB::table('student_attendance')->where('student_id', $studentId);
-                            $childAttendance['total'] = (clone $attendanceQuery)->count();
-                            $childAttendance['present'] = (clone $attendanceQuery)->whereRaw('LOWER(status) = ?', ['present'])->count();
-                            $childAttendance['absent'] = (clone $attendanceQuery)->whereRaw('LOWER(status) = ?', ['absent'])->count();
-                            $childAttendance['late'] = (clone $attendanceQuery)->whereRaw('LOWER(status) = ?', ['late'])->count();
-                            $childAttendance['rate'] = $childAttendance['total'] > 0
-                                ? round(($childAttendance['present'] / $childAttendance['total']) * 100, 1) : 0;
-                            $stats['attendance'] = $childAttendance['total'];
-                            if (Schema::hasTable('attendance_sessions')) {
-                                $childAttendanceDays = DB::table('student_attendance')
-                                    ->join('attendance_sessions', 'attendance_sessions.id', '=', 'student_attendance.attendance_session_id')
-                                    ->where('student_attendance.student_id', $studentId)
-                                    ->orderByDesc('attendance_sessions.attendance_date')->limit(7)
-                                    ->get(['attendance_sessions.attendance_date', 'student_attendance.status']);
-                            }
-                        }
-
-                        // Fee balances and payments for this selected child.
-                        if (Schema::hasTable('fee_invoices')) {
-                            $invoiceQuery = DB::table('fee_invoices')->where('student_id', $studentId);
-                            $childFees['total'] = (float) (clone $invoiceQuery)->sum('total_amount');
-                            $childFees['paid'] = (float) (clone $invoiceQuery)->sum('paid_amount');
-                            $childFees['balance'] = (float) (clone $invoiceQuery)->sum('balance_amount');
-                            $childFees['overdue'] = (clone $invoiceQuery)->where('balance_amount', '>', 0)
-                                ->whereDate('due_date', '<', today())->count();
-                            $stats['pending_fees'] = $childFees['balance'];
-                            if (Schema::hasTable('fee_payments')) {
-                                $childPayments = DB::table('fee_payments')
-                                    ->join('fee_invoices', 'fee_invoices.id', '=', 'fee_payments.fee_invoice_id')
-                                    ->where('fee_invoices.student_id', $studentId)
-                                    ->orderByDesc('fee_payments.paid_at')->limit(5)
-                                    ->get(['fee_payments.receipt_number', 'fee_payments.amount', 'fee_payments.payment_method', 'fee_payments.paid_at', 'fee_payments.status']);
-                            }
-                        }
-
-                        // Upcoming exams and the selected child's published results.
-                        if (Schema::hasTable('student_enrollments') && Schema::hasTable('exam_subjects') && Schema::hasTable('examinations')) {
-                            $sectionIds = DB::table('student_enrollments')->where('student_id', $studentId)
-                                ->where('status', 'active')->pluck('section_id')->filter()->unique();
-                            $examQuery = DB::table('exam_subjects')
-                                ->join('examinations', 'examinations.id', '=', 'exam_subjects.examination_id')
-                                ->whereIn('exam_subjects.section_id', $sectionIds);
-                            $childAcademic['upcoming_exams'] = (clone $examQuery)
-                                ->whereDate('exam_subjects.exam_date', '>=', today())->count();
-                            $childRecentResults = DB::table('exam_results')
-                                ->join('exam_subjects', 'exam_subjects.id', '=', 'exam_results.exam_subject_id')
-                                ->join('examinations', 'examinations.id', '=', 'exam_subjects.examination_id')
-                                ->where('exam_results.student_id', $studentId)
-                                ->whereNotNull('exam_results.published_at')
-                                ->orderByDesc('exam_results.published_at')->limit(6)
-                                ->get(['examinations.name as exam_name', 'exam_results.marks_obtained', 'exam_subjects.maximum_marks', 'exam_results.grade', 'exam_results.published_at']);
-                            $validResults = $childRecentResults->filter(fn ($r) => is_numeric($r->marks_obtained) && (float) $r->maximum_marks > 0);
-                            $childAcademic['average'] = $validResults->isNotEmpty()
-                                ? round($validResults->avg(fn ($r) => ((float) $r->marks_obtained / (float) $r->maximum_marks) * 100), 1) : null;
-                        }
-
-                        // Homework is visible only when assigned to this child's active section.
-                        // Keep overdue work visible too; parents need to see outstanding work.
-                        if (Schema::hasTable('assignments') && Schema::hasTable('student_enrollments')) {
-                            $sectionIds = DB::table('student_enrollments')
-                                ->where('student_id', $studentId)
-                                ->where('status', 'active')
-                                ->pluck('section_id')->filter()->unique()->values();
-
-                            if ($sectionIds->isNotEmpty() && Schema::hasColumn('assignments', 'section_id')) {
-                                $assignmentQuery = DB::table('assignments as a')
-                                    ->whereIn('a.section_id', $sectionIds);
-
-                                // Do not show unpublished drafts to parents.
-                                if (Schema::hasColumn('assignments', 'status')) {
-                                    $assignmentQuery->whereNotIn('a.status', ['draft', 'deleted', 'archived']);
-                                }
-
-                                // Attach this child's own submission state, never another student's.
-                                if (Schema::hasTable('assignment_submissions')
-                                    && Schema::hasColumn('assignment_submissions', 'assignment_id')
-                                    && Schema::hasColumn('assignment_submissions', 'student_id')) {
-                                    $assignmentQuery->leftJoin('assignment_submissions as asub', function ($join) use ($studentId) {
-                                        $join->on('asub.assignment_id', '=', 'a.id')
-                                            ->where('asub.student_id', '=', $studentId);
-                                    });
-                                }
-
-                                $assignmentColumns = Schema::getColumnListing('assignments');
-                                $assignmentSelect = ['a.id'];
-                                foreach (['title', 'description', 'due_date', 'status', 'created_at'] as $column) {
-                                    if (in_array($column, $assignmentColumns, true)) {
-                                        $assignmentSelect[] = 'a.' . $column;
-                                    }
-                                }
-                                if (Schema::hasTable('assignment_submissions')
-                                    && Schema::hasColumn('assignment_submissions', 'assignment_id')
-                                    && Schema::hasColumn('assignment_submissions', 'student_id')) {
-                                    foreach (['status', 'submitted_at', 'marks_obtained'] as $column) {
-                                        if (Schema::hasColumn('assignment_submissions', $column)) {
-                                            $assignmentSelect[] = 'asub.' . $column . ' as submission_' . $column;
-                                        }
-                                    }
-                                }
-
-                                $orderColumn = Schema::hasColumn('assignments', 'due_date') ? 'a.due_date' : 'a.id';
-                                $childAssignments = $assignmentQuery
-                                    ->select($assignmentSelect)
-                                    ->distinct()
-                                    ->orderBy($orderColumn, Schema::hasColumn('assignments', 'due_date') ? 'asc' : 'desc')
-                                    ->limit(8)
-                                    ->get()
-                                    ->map(function ($assignment) {
-                                        $assignment->display_status = $assignment->submission_status
-                                            ?? ($assignment->submission_submitted_at ? 'submitted' : ($assignment->status ?? 'assigned'));
-                                        return $assignment;
-                                    });
-                            }
-
-                            if (Schema::hasTable('assignment_submissions')
-                                && Schema::hasColumn('assignment_submissions', 'student_id')) {
-                                $pendingQuery = DB::table('assignment_submissions')
-                                    ->where('student_id', $studentId);
-                                $childAcademic['pending_assignments'] = Schema::hasColumn('assignment_submissions', 'submitted_at')
-                                    ? (clone $pendingQuery)->whereNull('submitted_at')->count()
-                                    : (Schema::hasColumn('assignment_submissions', 'status')
-                                        ? (clone $pendingQuery)->whereIn('status', ['pending', 'assigned', 'not_submitted'])->count()
-                                        : 0);
-                            }
-                        }
-
-                        // Upcoming exam timetable for this child's active section(s).
-                        if (Schema::hasTable('exam_subjects') && Schema::hasTable('examinations')
-                            && Schema::hasTable('student_enrollments')) {
-                            $sectionIdsForExams = DB::table('student_enrollments')
-                                ->where('student_id', $studentId)
-                                ->where('status', 'active')
-                                ->pluck('section_id')->filter()->unique();
-
-                            if ($sectionIdsForExams->isNotEmpty()) {
-                                $examListQuery = DB::table('exam_subjects')
-                                    ->join('examinations', 'examinations.id', '=', 'exam_subjects.examination_id')
-                                    ->whereIn('exam_subjects.section_id', $sectionIdsForExams)
-                                    ->whereDate('exam_subjects.exam_date', '>=', today())
-                                    ->orderBy('exam_subjects.exam_date')
-                                    ->limit(8);
-
-                                if ($schoolId && Schema::hasColumn('examinations', 'school_id')) {
-                                    $examListQuery->where('examinations.school_id', $schoolId);
-                                }
-
-                                $examSelect = [
-                                    'examinations.name',
-                                    'exam_subjects.exam_date',
-                                    'exam_subjects.start_time',
-                                    'exam_subjects.room_number',
-                                ];
-
-                                if (Schema::hasTable('subjects') && Schema::hasColumn('exam_subjects', 'subject_id')
-                                    && Schema::hasColumn('subjects', 'id') && Schema::hasColumn('subjects', 'name')) {
-                                    $examListQuery->leftJoin('subjects', 'subjects.id', '=', 'exam_subjects.subject_id');
-                                    $examSelect[] = 'subjects.name as subject_name';
-                                }
-
-                                $childUpcomingExams = $examListQuery->get($examSelect)->map(function ($exam) {
-                                    $exam->subject_name = $exam->subject_name ?? $exam->name;
-                                    return $exam;
-                                });
-                            }
-                        }
-
-                        // Attendance trend: aggregate the selected child's records by week.
-                        if (Schema::hasTable('student_attendance') && Schema::hasTable('attendance_sessions')) {
-                            $trendRows = DB::table('student_attendance')
+                    // Attendance for the selected child only.
+                    if (Schema::hasTable('student_attendance')) {
+                        $attendanceQuery = DB::table('student_attendance')->where('student_id', $studentId);
+                        $childAttendance['total'] = (clone $attendanceQuery)->count();
+                        $childAttendance['present'] = (clone $attendanceQuery)->whereRaw('LOWER(status) = ?', ['present'])->count();
+                        $childAttendance['absent'] = (clone $attendanceQuery)->whereRaw('LOWER(status) = ?', ['absent'])->count();
+                        $childAttendance['late'] = (clone $attendanceQuery)->whereRaw('LOWER(status) = ?', ['late'])->count();
+                        $childAttendance['rate'] = $childAttendance['total'] > 0
+                            ? round(($childAttendance['present'] / $childAttendance['total']) * 100, 1) : 0;
+                        $stats['attendance'] = $childAttendance['total'];
+                        if (Schema::hasTable('attendance_sessions')) {
+                            $childAttendanceDays = DB::table('student_attendance')
                                 ->join('attendance_sessions', 'attendance_sessions.id', '=', 'student_attendance.attendance_session_id')
                                 ->where('student_attendance.student_id', $studentId)
-                                ->whereDate('attendance_sessions.attendance_date', '>=', today()->copy()->subWeeks(6)->startOfWeek())
-                                ->whereDate('attendance_sessions.attendance_date', '<=', today())
+                                ->orderByDesc('attendance_sessions.attendance_date')->limit(7)
                                 ->get(['attendance_sessions.attendance_date', 'student_attendance.status']);
-
-                            $weekly = $trendRows->groupBy(function ($row) {
-                                return Carbon::parse($row->attendance_date)->startOfWeek()->format('Y-m-d');
-                            });
-
-                            for ($week = 5; $week >= 0; $week--) {
-                                $weekStart = today()->copy()->startOfWeek()->subWeeks($week);
-                                $key = $weekStart->format('Y-m-d');
-                                $records = $weekly->get($key, collect());
-                                $presentCount = $records->filter(fn ($r) => strtolower((string) $r->status) === 'present')->count();
-                                $totalCount = $records->count();
-
-                                $childAttendanceTrend->push([
-                                    'label' => $weekStart->format('d M'),
-                                    'percentage' => $totalCount > 0 ? round(($presentCount / $totalCount) * 100, 1) : 0,
-                                ]);
-                            }
                         }
+                    }
 
-                        // Borrowed books and library availability for this selected child.
-                        if (Schema::hasTable('library_loans') && Schema::hasTable('library_copies')
-                            && Schema::hasTable('library_books')) {
-                            $loanQuery = DB::table('library_loans')
-                                ->join('library_copies', 'library_copies.id', '=', 'library_loans.library_copy_id')
-                                ->join('library_books', 'library_books.id', '=', 'library_copies.library_book_id')
-                                ->where('library_loans.student_id', $studentId);
-
-                            if (Schema::hasColumn('library_loans', 'returned_at')) {
-                                $loanQuery->whereNull('library_loans.returned_at');
-                            } elseif (Schema::hasColumn('library_loans', 'status')) {
-                                $loanQuery->whereIn('library_loans.status', ['issued', 'borrowed', 'active']);
-                            }
-
-                            $childBorrowedBooks = $loanQuery->orderByDesc('library_loans.issued_at')
-                                ->limit(8)
-                                ->get([
-                                    'library_books.title',
-                                    'library_loans.due_at',
-                                    'library_loans.status',
-                                ]);
-
-                            $libraryQuery = DB::table('library_copies')
-                                ->join('library_books', 'library_books.id', '=', 'library_copies.library_book_id');
-
-                            if ($schoolId && Schema::hasColumn('library_books', 'school_id')) {
-                                $libraryQuery->where('library_books.school_id', $schoolId);
-                            }
-
-                            $childLibraryStats['total'] = (clone $libraryQuery)->count();
-                            $childLibraryStats['available'] = (clone $libraryQuery)
-                                ->whereRaw('LOWER(library_copies.status) = ?', ['available'])->count();
-                            $childLibraryStats['availability_rate'] = $childLibraryStats['total'] > 0
-                                ? round(($childLibraryStats['available'] / $childLibraryStats['total']) * 100, 1)
-                                : 0;
+                    // Fee balances and payments for this selected child.
+                    if (Schema::hasTable('fee_invoices')) {
+                        $invoiceQuery = DB::table('fee_invoices')->where('student_id', $studentId);
+                        $childFees['total'] = (float) (clone $invoiceQuery)->sum('total_amount');
+                        $childFees['paid'] = (float) (clone $invoiceQuery)->sum('paid_amount');
+                        $childFees['balance'] = (float) (clone $invoiceQuery)->sum('balance_amount');
+                        $childFees['overdue'] = (clone $invoiceQuery)->where('balance_amount', '>', 0)
+                            ->whereDate('due_date', '<', today())->count();
+                        $stats['pending_fees'] = $childFees['balance'];
+                        if (Schema::hasTable('fee_payments')) {
+                            $childPayments = DB::table('fee_payments')
+                                ->join('fee_invoices', 'fee_invoices.id', '=', 'fee_payments.fee_invoice_id')
+                                ->where('fee_invoices.student_id', $studentId)
+                                ->orderByDesc('fee_payments.paid_at')->limit(5)
+                                ->get(['fee_payments.receipt_number', 'fee_payments.amount', 'fee_payments.payment_method', 'fee_payments.paid_at', 'fee_payments.status']);
                         }
+                    }
 
-                        // Calculate homework completion only when submission records exist.
-                        if (Schema::hasTable('assignment_submissions')
-                            && Schema::hasColumn('assignment_submissions', 'student_id')
-                            && Schema::hasColumn('assignment_submissions', 'submitted_at')) {
-                            $submissionQuery = DB::table('assignment_submissions')
-                                ->where('student_id', $studentId);
-                            $submissionTotal = (clone $submissionQuery)->count();
-                            $submissionDone = (clone $submissionQuery)->whereNotNull('submitted_at')->count();
-                            $childPerformance['homework'] = $submissionTotal > 0
-                                ? round(($submissionDone / $submissionTotal) * 100, 1)
-                                : null;
-                        }
+                    // Upcoming exams and the selected child's published results.
+                    if (Schema::hasTable('student_enrollments') && Schema::hasTable('exam_subjects') && Schema::hasTable('examinations')) {
+                        $sectionIds = DB::table('student_enrollments')->where('student_id', $studentId)
+                            ->where('status', 'active')->pluck('section_id')->filter()->unique();
+                        $examQuery = DB::table('exam_subjects')
+                            ->join('examinations', 'examinations.id', '=', 'exam_subjects.examination_id')
+                            ->whereIn('exam_subjects.section_id', $sectionIds);
+                        $childAcademic['upcoming_exams'] = (clone $examQuery)
+                            ->whereDate('exam_subjects.exam_date', '>=', today())->count();
+                        $childRecentResults = DB::table('exam_results')
+                            ->join('exam_subjects', 'exam_subjects.id', '=', 'exam_results.exam_subject_id')
+                            ->join('examinations', 'examinations.id', '=', 'exam_subjects.examination_id')
+                            ->where('exam_results.student_id', $studentId)
+                            ->whereNotNull('exam_results.published_at')
+                            ->orderByDesc('exam_results.published_at')->limit(6)
+                            ->get(['examinations.name as exam_name', 'exam_results.marks_obtained', 'exam_subjects.maximum_marks', 'exam_results.grade', 'exam_results.published_at']);
+                        $validResults = $childRecentResults->filter(fn($r) => is_numeric($r->marks_obtained) && (float) $r->maximum_marks > 0);
+                        $childAcademic['average'] = $validResults->isNotEmpty()
+                            ? round($validResults->avg(fn($r) => ((float) $r->marks_obtained / (float) $r->maximum_marks) * 100), 1) : null;
+                    }
 
-                        $childPerformance['attendance'] = $childAttendance['total'] > 0
-                            ? $childAttendance['rate'] : null;
-                        $childPerformance['marks'] = $childAcademic['average'];
+                    // Homework is visible only when assigned to this child's active section.
+                    // Keep overdue work visible too; parents need to see outstanding work.
+                    if (Schema::hasTable('assignments') && Schema::hasTable('student_enrollments')) {
+                        $sectionIds = DB::table('student_enrollments')
+                            ->where('student_id', $studentId)
+                            ->where('status', 'active')
+                            ->pluck('section_id')->filter()->unique()->values();
 
-                        // Documents are read only from certificate records linked to this student.
-                        // Column checks keep this compatible with different certificate schemas.
-                        if (Schema::hasTable('certificates') && Schema::hasColumn('certificates', 'student_id')) {
-                            $certificateColumns = Schema::getColumnListing('certificates');
-                            $certificateQuery = DB::table('certificates')->where('student_id', $studentId);
+                        if ($sectionIds->isNotEmpty() && Schema::hasColumn('assignments', 'section_id')) {
+                            $assignmentQuery = DB::table('assignments as a')
+                                ->whereIn('a.section_id', $sectionIds);
 
-                            if (in_array('school_id', $certificateColumns, true) && $schoolId) {
-                                $certificateQuery->where('school_id', $schoolId);
+                            // Do not show unpublished drafts to parents.
+                            if (Schema::hasColumn('assignments', 'status')) {
+                                $assignmentQuery->whereNotIn('a.status', ['draft', 'deleted', 'archived']);
                             }
 
-                            $certificateSelect = ['id'];
-                            foreach (['title', 'name', 'certificate_type', 'created_at', 'file_path', 'pdf_path', 'status'] as $column) {
-                                if (in_array($column, $certificateColumns, true)) {
-                                    $certificateSelect[] = $column;
+                            // Attach this child's own submission state, never another student's.
+                            if (
+                                Schema::hasTable('assignment_submissions')
+                                && Schema::hasColumn('assignment_submissions', 'assignment_id')
+                                && Schema::hasColumn('assignment_submissions', 'student_id')
+                            ) {
+                                $assignmentQuery->leftJoin('assignment_submissions as asub', function ($join) use ($studentId) {
+                                    $join->on('asub.assignment_id', '=', 'a.id')
+                                        ->where('asub.student_id', '=', $studentId);
+                                });
+                            }
+
+                            $assignmentColumns = Schema::getColumnListing('assignments');
+                            $assignmentSelect = ['a.id'];
+                            foreach (['title', 'description', 'due_date', 'status', 'created_at'] as $column) {
+                                if (in_array($column, $assignmentColumns, true)) {
+                                    $assignmentSelect[] = 'a.' . $column;
+                                }
+                            }
+                            if (
+                                Schema::hasTable('assignment_submissions')
+                                && Schema::hasColumn('assignment_submissions', 'assignment_id')
+                                && Schema::hasColumn('assignment_submissions', 'student_id')
+                            ) {
+                                foreach (['status', 'submitted_at', 'marks_obtained'] as $column) {
+                                    if (Schema::hasColumn('assignment_submissions', $column)) {
+                                        $assignmentSelect[] = 'asub.' . $column . ' as submission_' . $column;
+                                    }
                                 }
                             }
 
-                            $childDocuments = $certificateQuery->latest('id')->limit(8)->get($certificateSelect)
-                                ->map(function ($document) {
-                                    $document->title = $document->title
-                                        ?? $document->name
-                                        ?? $document->certificate_type
-                                        ?? 'Student Certificate';
-                                    $document->path = $document->file_path ?? $document->pdf_path ?? null;
-                                    return $document;
+                            $orderColumn = Schema::hasColumn('assignments', 'due_date') ? 'a.due_date' : 'a.id';
+                            $childAssignments = $assignmentQuery
+                                ->select($assignmentSelect)
+                                ->distinct()
+                                ->orderBy($orderColumn, Schema::hasColumn('assignments', 'due_date') ? 'asc' : 'desc')
+                                ->limit(8)
+                                ->get()
+                                ->map(function ($assignment) {
+                                    $assignment->display_status = $assignment->submission_status
+                                        ?? ($assignment->submission_submitted_at ? 'submitted' : ($assignment->status ?? 'assigned'));
+                                    return $assignment;
                                 });
                         }
 
-                        // Achievement records are optional; only query a known student-linked table.
-                        foreach (['student_achievements', 'student_awards'] as $achievementTable) {
-                            if (!Schema::hasTable($achievementTable) || !Schema::hasColumn($achievementTable, 'student_id')) {
-                                continue;
-                            }
-
-                            $achievementColumns = Schema::getColumnListing($achievementTable);
-                            $achievementSelect = ['id'];
-                            foreach (['title', 'name', 'category', 'description', 'detail', 'academic_year', 'year', 'created_at'] as $column) {
-                                if (in_array($column, $achievementColumns, true)) {
-                                    $achievementSelect[] = $column;
-                                }
-                            }
-
-                            $achievementQuery = DB::table($achievementTable)->where('student_id', $studentId);
-                            if (in_array('school_id', $achievementColumns, true) && $schoolId) {
-                                $achievementQuery->where('school_id', $schoolId);
-                            }
-                            $childAchievements = $achievementQuery->latest('id')->limit(8)->get($achievementSelect);
-                            break;
+                        if (
+                            Schema::hasTable('assignment_submissions')
+                            && Schema::hasColumn('assignment_submissions', 'student_id')
+                        ) {
+                            $pendingQuery = DB::table('assignment_submissions')
+                                ->where('student_id', $studentId);
+                            $childAcademic['pending_assignments'] = Schema::hasColumn('assignment_submissions', 'submitted_at')
+                                ? (clone $pendingQuery)->whereNull('submitted_at')->count()
+                                : (Schema::hasColumn('assignment_submissions', 'status')
+                                    ? (clone $pendingQuery)->whereIn('status', ['pending', 'assigned', 'not_submitted'])->count()
+                                    : 0);
                         }
-
-                        // Transport assignments are optional. Do not infer a child's route
-                        // from the school's fleet; only show a record explicitly linked to them.
-                        $transportAssignmentTables = ['student_transport_assignments', 'transport_assignments', 'transport_route_students'];
-                        foreach ($transportAssignmentTables as $transportTable) {
-                            if (!Schema::hasTable($transportTable) || !Schema::hasColumn($transportTable, 'student_id')) {
-                                continue;
-                            }
-
-                            $transportColumns = Schema::getColumnListing($transportTable);
-                            $transportAssignment = DB::table($transportTable)
-                                ->where('student_id', $studentId)
-                                ->when(in_array('status', $transportColumns, true), fn ($q) => $q->whereIn('status', ['active', 'assigned']))
-                                ->latest('id')->first();
-
-                            if (!$transportAssignment) {
-                                continue;
-                            }
-
-                            $routeForeignKey = collect(['transport_route_id', 'route_id'])
-                                ->first(fn ($column) => in_array($column, $transportColumns, true));
-                            $vehicleForeignKey = collect(['transport_vehicle_id', 'vehicle_id'])
-                                ->first(fn ($column) => in_array($column, $transportColumns, true));
-
-                            $transportData = [];
-                            if ($routeForeignKey && Schema::hasTable('transport_routes')) {
-                                $route = DB::table('transport_routes')->where('id', $transportAssignment->{$routeForeignKey})->first();
-                                if ($route) $transportData['route_name'] = $route->name ?? 'Assigned route';
-                            }
-                            if ($vehicleForeignKey && Schema::hasTable('transport_vehicles')) {
-                                $vehicle = DB::table('transport_vehicles')->where('id', $transportAssignment->{$vehicleForeignKey})->first();
-                                if ($vehicle) {
-                                    $transportData['registration_number'] = $vehicle->registration_number ?? null;
-                                    $transportData['vehicle_number'] = $vehicle->registration_number ?? null;
-                                }
-                            }
-                            if (in_array('pickup_time', $transportColumns, true)) {
-                                $transportData['pickup_time'] = $transportAssignment->pickup_time;
-                            }
-                            if (in_array('driver_name', $transportColumns, true)) {
-                                $transportData['driver_name'] = $transportAssignment->driver_name;
-                            }
-                            if (in_array('driver_phone', $transportColumns, true)) {
-                                $transportData['driver_phone'] = $transportAssignment->driver_phone;
-                            }
-                            $childTransport = $transportData ?: null;
-                            break;
-                        }
-
-                        // Notices are limited to the selected child's school/campus.
-                        $childAnnouncements = $this->recentAnnouncements($schoolId, $campusId)->take(5)->values();
-                        $childEvents = $this->upcomingEvents($schoolId, $campusId)->take(5)->values();
-                        if (Schema::hasTable('announcements') && Schema::hasTable('announcement_reads')) {
-                            $noticeQuery = DB::table('announcements')->where('status', 'published');
-                            if ($schoolId) $noticeQuery->where('school_id', $schoolId);
-                            if ($campusId) $noticeQuery->where(fn ($q) => $q->whereNull('campus_id')->orWhere('campus_id', $campusId));
-                            $stats['unread_notices'] = (clone $noticeQuery)
-                                ->leftJoin('announcement_reads', function ($join) use ($user) {
-                                    $join->on('announcement_reads.announcement_id', '=', 'announcements.id')
-                                        ->where('announcement_reads.user_id', '=', $user->id);
-                                })->whereNull('announcement_reads.id')->count();
-                        }
-
-                        $recentItems = $childRecentResults->map(fn ($r) => (object) [
-                            'title' => $r->exam_name,
-                            'date' => $r->published_at,
-                            'status' => $r->grade ?: (is_numeric($r->marks_obtained) ? $r->marks_obtained . '/' . $r->maximum_marks : 'Published'),
-                        ]);
-                        $upcomingItems = $childEvents;
-
-                        $childData->push([
-                            'student' => $selectedChild,
-                            'enrollment' => $childEnrollment,
-                            'attendance' => $childAttendance,
-                            'fees' => $childFees,
-                            'academic' => $childAcademic,
-                            'recentResults' => $childRecentResults,
-                            'assignments' => $childAssignments,
-                            'announcements' => $childAnnouncements,
-                            'events' => $childEvents,
-                            'payments' => $childPayments,
-                            'attendanceDays' => $childAttendanceDays,
-                            'upcomingExams' => $childUpcomingExams,
-                            'documents' => $childDocuments,
-                            'transport' => $childTransport,
-                            'borrowedBooks' => $childBorrowedBooks,
-                            'libraryStats' => $childLibraryStats,
-                            'achievements' => $childAchievements,
-                            'attendanceTrend' => $childAttendanceTrend,
-                            'performance' => $childPerformance,
-                        ]);
                     }
+
+                    // Upcoming exam timetable for this child's active section(s).
+                    if (
+                        Schema::hasTable('exam_subjects') && Schema::hasTable('examinations')
+                        && Schema::hasTable('student_enrollments')
+                    ) {
+                        $sectionIdsForExams = DB::table('student_enrollments')
+                            ->where('student_id', $studentId)
+                            ->where('status', 'active')
+                            ->pluck('section_id')->filter()->unique();
+
+                        if ($sectionIdsForExams->isNotEmpty()) {
+                            $examListQuery = DB::table('exam_subjects')
+                                ->join('examinations', 'examinations.id', '=', 'exam_subjects.examination_id')
+                                ->whereIn('exam_subjects.section_id', $sectionIdsForExams)
+                                ->whereDate('exam_subjects.exam_date', '>=', today())
+                                ->orderBy('exam_subjects.exam_date')
+                                ->limit(8);
+
+                            if ($schoolId && Schema::hasColumn('examinations', 'school_id')) {
+                                $examListQuery->where('examinations.school_id', $schoolId);
+                            }
+
+                            $examSelect = [
+                                'examinations.name',
+                                'exam_subjects.exam_date',
+                                'exam_subjects.start_time',
+                                'exam_subjects.room_number',
+                            ];
+
+                            if (
+                                Schema::hasTable('subjects') && Schema::hasColumn('exam_subjects', 'subject_id')
+                                && Schema::hasColumn('subjects', 'id') && Schema::hasColumn('subjects', 'name')
+                            ) {
+                                $examListQuery->leftJoin('subjects', 'subjects.id', '=', 'exam_subjects.subject_id');
+                                $examSelect[] = 'subjects.name as subject_name';
+                            }
+
+                            $childUpcomingExams = $examListQuery->get($examSelect)->map(function ($exam) {
+                                $exam->subject_name = $exam->subject_name ?? $exam->name;
+                                return $exam;
+                            });
+                        }
+                    }
+
+                    // Attendance trend: aggregate the selected child's records by week.
+                    if (Schema::hasTable('student_attendance') && Schema::hasTable('attendance_sessions')) {
+                        $trendRows = DB::table('student_attendance')
+                            ->join('attendance_sessions', 'attendance_sessions.id', '=', 'student_attendance.attendance_session_id')
+                            ->where('student_attendance.student_id', $studentId)
+                            ->whereDate('attendance_sessions.attendance_date', '>=', today()->copy()->subWeeks(6)->startOfWeek())
+                            ->whereDate('attendance_sessions.attendance_date', '<=', today())
+                            ->get(['attendance_sessions.attendance_date', 'student_attendance.status']);
+
+                        $weekly = $trendRows->groupBy(function ($row) {
+                            return Carbon::parse($row->attendance_date)->startOfWeek()->format('Y-m-d');
+                        });
+
+                        for ($week = 5; $week >= 0; $week--) {
+                            $weekStart = today()->copy()->startOfWeek()->subWeeks($week);
+                            $key = $weekStart->format('Y-m-d');
+                            $records = $weekly->get($key, collect());
+                            $presentCount = $records->filter(fn($r) => strtolower((string) $r->status) === 'present')->count();
+                            $totalCount = $records->count();
+
+                            $childAttendanceTrend->push([
+                                'label' => $weekStart->format('d M'),
+                                'percentage' => $totalCount > 0 ? round(($presentCount / $totalCount) * 100, 1) : 0,
+                            ]);
+                        }
+                    }
+
+                    // Borrowed books and library availability for this selected child.
+                    if (
+                        Schema::hasTable('library_loans') && Schema::hasTable('library_copies')
+                        && Schema::hasTable('library_books')
+                    ) {
+                        $loanQuery = DB::table('library_loans')
+                            ->join('library_copies', 'library_copies.id', '=', 'library_loans.library_copy_id')
+                            ->join('library_books', 'library_books.id', '=', 'library_copies.library_book_id')
+                            ->where('library_loans.student_id', $studentId);
+
+                        if (Schema::hasColumn('library_loans', 'returned_at')) {
+                            $loanQuery->whereNull('library_loans.returned_at');
+                        } elseif (Schema::hasColumn('library_loans', 'status')) {
+                            $loanQuery->whereIn('library_loans.status', ['issued', 'borrowed', 'active']);
+                        }
+
+                        $childBorrowedBooks = $loanQuery->orderByDesc('library_loans.issued_at')
+                            ->limit(8)
+                            ->get([
+                                'library_books.title',
+                                'library_loans.due_at',
+                                'library_loans.status',
+                            ]);
+
+                        $libraryQuery = DB::table('library_copies')
+                            ->join('library_books', 'library_books.id', '=', 'library_copies.library_book_id');
+
+                        if ($schoolId && Schema::hasColumn('library_books', 'school_id')) {
+                            $libraryQuery->where('library_books.school_id', $schoolId);
+                        }
+
+                        $childLibraryStats['total'] = (clone $libraryQuery)->count();
+                        $childLibraryStats['available'] = (clone $libraryQuery)
+                            ->whereRaw('LOWER(library_copies.status) = ?', ['available'])->count();
+                        $childLibraryStats['availability_rate'] = $childLibraryStats['total'] > 0
+                            ? round(($childLibraryStats['available'] / $childLibraryStats['total']) * 100, 1)
+                            : 0;
+                    }
+
+                    // Calculate homework completion only when submission records exist.
+                    if (
+                        Schema::hasTable('assignment_submissions')
+                        && Schema::hasColumn('assignment_submissions', 'student_id')
+                        && Schema::hasColumn('assignment_submissions', 'submitted_at')
+                    ) {
+                        $submissionQuery = DB::table('assignment_submissions')
+                            ->where('student_id', $studentId);
+                        $submissionTotal = (clone $submissionQuery)->count();
+                        $submissionDone = (clone $submissionQuery)->whereNotNull('submitted_at')->count();
+                        $childPerformance['homework'] = $submissionTotal > 0
+                            ? round(($submissionDone / $submissionTotal) * 100, 1)
+                            : null;
+                    }
+
+                    $childPerformance['attendance'] = $childAttendance['total'] > 0
+                        ? $childAttendance['rate'] : null;
+                    $childPerformance['marks'] = $childAcademic['average'];
+
+                    // Documents are read only from certificate records linked to this student.
+                    // Column checks keep this compatible with different certificate schemas.
+                    if (Schema::hasTable('certificates') && Schema::hasColumn('certificates', 'student_id')) {
+                        $certificateColumns = Schema::getColumnListing('certificates');
+                        $certificateQuery = DB::table('certificates')->where('student_id', $studentId);
+
+                        if (in_array('school_id', $certificateColumns, true) && $schoolId) {
+                            $certificateQuery->where('school_id', $schoolId);
+                        }
+
+                        $certificateSelect = ['id'];
+                        foreach (['title', 'name', 'certificate_type', 'created_at', 'file_path', 'pdf_path', 'status'] as $column) {
+                            if (in_array($column, $certificateColumns, true)) {
+                                $certificateSelect[] = $column;
+                            }
+                        }
+
+                        $childDocuments = $certificateQuery->latest('id')->limit(8)->get($certificateSelect)
+                            ->map(function ($document) {
+                                $document->title = $document->title
+                                    ?? $document->name
+                                    ?? $document->certificate_type
+                                    ?? 'Student Certificate';
+                                $document->path = $document->file_path ?? $document->pdf_path ?? null;
+                                return $document;
+                            });
+                    }
+
+                    // Achievement records are optional; only query a known student-linked table.
+                    foreach (['student_achievements', 'student_awards'] as $achievementTable) {
+                        if (!Schema::hasTable($achievementTable) || !Schema::hasColumn($achievementTable, 'student_id')) {
+                            continue;
+                        }
+
+                        $achievementColumns = Schema::getColumnListing($achievementTable);
+                        $achievementSelect = ['id'];
+                        foreach (['title', 'name', 'category', 'description', 'detail', 'academic_year', 'year', 'created_at'] as $column) {
+                            if (in_array($column, $achievementColumns, true)) {
+                                $achievementSelect[] = $column;
+                            }
+                        }
+
+                        $achievementQuery = DB::table($achievementTable)->where('student_id', $studentId);
+                        if (in_array('school_id', $achievementColumns, true) && $schoolId) {
+                            $achievementQuery->where('school_id', $schoolId);
+                        }
+                        $childAchievements = $achievementQuery->latest('id')->limit(8)->get($achievementSelect);
+                        break;
+                    }
+
+                    // Transport assignments are optional. Do not infer a child's route
+                    // from the school's fleet; only show a record explicitly linked to them.
+                    $transportAssignmentTables = ['student_transport_assignments', 'transport_assignments', 'transport_route_students'];
+                    foreach ($transportAssignmentTables as $transportTable) {
+                        if (!Schema::hasTable($transportTable) || !Schema::hasColumn($transportTable, 'student_id')) {
+                            continue;
+                        }
+
+                        $transportColumns = Schema::getColumnListing($transportTable);
+                        $transportAssignment = DB::table($transportTable)
+                            ->where('student_id', $studentId)
+                            ->when(in_array('status', $transportColumns, true), fn($q) => $q->whereIn('status', ['active', 'assigned']))
+                            ->latest('id')->first();
+
+                        if (!$transportAssignment) {
+                            continue;
+                        }
+
+                        $routeForeignKey = collect(['transport_route_id', 'route_id'])
+                            ->first(fn($column) => in_array($column, $transportColumns, true));
+                        $vehicleForeignKey = collect(['transport_vehicle_id', 'vehicle_id'])
+                            ->first(fn($column) => in_array($column, $transportColumns, true));
+
+                        $transportData = [];
+                        if ($routeForeignKey && Schema::hasTable('transport_routes')) {
+                            $route = DB::table('transport_routes')->where('id', $transportAssignment->{$routeForeignKey})->first();
+                            if ($route)
+                                $transportData['route_name'] = $route->name ?? 'Assigned route';
+                        }
+                        if ($vehicleForeignKey && Schema::hasTable('transport_vehicles')) {
+                            $vehicle = DB::table('transport_vehicles')->where('id', $transportAssignment->{$vehicleForeignKey})->first();
+                            if ($vehicle) {
+                                $transportData['registration_number'] = $vehicle->registration_number ?? null;
+                                $transportData['vehicle_number'] = $vehicle->registration_number ?? null;
+                            }
+                        }
+                        if (in_array('pickup_time', $transportColumns, true)) {
+                            $transportData['pickup_time'] = $transportAssignment->pickup_time;
+                        }
+                        if (in_array('driver_name', $transportColumns, true)) {
+                            $transportData['driver_name'] = $transportAssignment->driver_name;
+                        }
+                        if (in_array('driver_phone', $transportColumns, true)) {
+                            $transportData['driver_phone'] = $transportAssignment->driver_phone;
+                        }
+                        $childTransport = $transportData ?: null;
+                        break;
+                    }
+
+                    // Notices are limited to the selected child's school/campus.
+                    $childAnnouncements = $this->recentAnnouncements($schoolId, $campusId)->take(5)->values();
+                    $childEvents = $this->upcomingEvents($schoolId, $campusId)->take(5)->values();
+                    if (Schema::hasTable('announcements') && Schema::hasTable('announcement_reads')) {
+                        $noticeQuery = DB::table('announcements')->where('status', 'published');
+                        if ($schoolId)
+                            $noticeQuery->where('school_id', $schoolId);
+                        if ($campusId)
+                            $noticeQuery->where(fn($q) => $q->whereNull('campus_id')->orWhere('campus_id', $campusId));
+                        $stats['unread_notices'] = (clone $noticeQuery)
+                            ->leftJoin('announcement_reads', function ($join) use ($user) {
+                                $join->on('announcement_reads.announcement_id', '=', 'announcements.id')
+                                    ->where('announcement_reads.user_id', '=', $user->id);
+                            })->whereNull('announcement_reads.id')->count();
+                    }
+
+                    $recentItems = $childRecentResults->map(fn($r) => (object) [
+                        'title' => $r->exam_name,
+                        'date' => $r->published_at,
+                        'status' => $r->grade ?: (is_numeric($r->marks_obtained) ? $r->marks_obtained . '/' . $r->maximum_marks : 'Published'),
+                    ]);
+                    $upcomingItems = $childEvents;
+
+                    $childData->push([
+                        'student' => $selectedChild,
+                        'enrollment' => $childEnrollment,
+                        'attendance' => $childAttendance,
+                        'fees' => $childFees,
+                        'academic' => $childAcademic,
+                        'recentResults' => $childRecentResults,
+                        'assignments' => $childAssignments,
+                        'announcements' => $childAnnouncements,
+                        'events' => $childEvents,
+                        'payments' => $childPayments,
+                        'attendanceDays' => $childAttendanceDays,
+                        'upcomingExams' => $childUpcomingExams,
+                        'documents' => $childDocuments,
+                        'transport' => $childTransport,
+                        'borrowedBooks' => $childBorrowedBooks,
+                        'libraryStats' => $childLibraryStats,
+                        'achievements' => $childAchievements,
+                        'attendanceTrend' => $childAttendanceTrend,
+                        'performance' => $childPerformance,
+                    ]);
+                }
             }
 
             $parentDashboardData = [
@@ -1059,22 +1151,36 @@ class DashboardController extends Controller
     private function studentDashboardData($user, ?int $schoolId, ?int $campusId): array
     {
         $empty = [
-            'studentProfile' => null, 'student' => null,
+            'studentProfile' => null,
+            'student' => null,
             'attendanceSummary' => ['present' => 0, 'absent' => 0, 'late' => 0, 'total' => 0, 'percentage' => null],
             'feeSummary' => ['total' => 0, 'paid' => 0, 'balance' => 0, 'overdue' => 0],
             'academicSummary' => ['average' => null, 'grade' => null, 'rank' => null],
-            'todayTimetable' => collect(), 'studentAssignments' => collect(),
-            'studentExams' => collect(), 'learningResources' => collect(),
-            'studentAnnouncements' => collect(), 'studentEvents' => collect(),
-            'feePayments' => collect(), 'mySubjects' => collect(),
-            'attendanceTrend' => collect(), 'subjectPerformance' => collect(),
-            'studentDocuments' => collect(), 'studentPerformance' => ['homework' => null, 'engagement' => null],
-            'studentTransport' => null, 'borrowedBooks' => collect(),
+            'todayTimetable' => collect(),
+            'studentAssignments' => collect(),
+            'studentExams' => collect(),
+            'learningResources' => collect(),
+            'studentAnnouncements' => collect(),
+            'studentEvents' => collect(),
+            'feePayments' => collect(),
+            'mySubjects' => collect(),
+            'attendanceTrend' => collect(),
+            'subjectPerformance' => collect(),
+            'studentDocuments' => collect(),
+            'studentPerformance' => ['homework' => null, 'engagement' => null],
+            'studentTransport' => null,
+            'borrowedBooks' => collect(),
             'libraryStats' => ['available' => null, 'total' => null, 'availability_rate' => null],
-            'studentHostel' => null, 'hostelFeeInvoices' => collect(),
-            'hostelFeePayments' => collect(), 'hostelAttendance' => collect(),
-            'hostelWarden' => null, 'className' => null, 'sectionName' => null,
-            'rollNumber' => null, 'academicYearName' => null, 'campusName' => null,
+            'studentHostel' => null,
+            'hostelFeeInvoices' => collect(),
+            'hostelFeePayments' => collect(),
+            'hostelAttendance' => collect(),
+            'hostelWarden' => null,
+            'className' => null,
+            'sectionName' => null,
+            'rollNumber' => null,
+            'academicYearName' => null,
+            'campusName' => null,
         ];
 
         if (!Schema::hasTable('student_profiles')) {
@@ -1151,9 +1257,11 @@ class DashboardController extends Controller
         // Assignments are selected by the student's active section, then joined to
         // that student's own submission row (if one exists).
         $studentAssignments = collect();
-        if ($enrollment && !empty($enrollment->section_id)
+        if (
+            $enrollment && !empty($enrollment->section_id)
             && Schema::hasTable('assignments')
-            && Schema::hasColumn('assignments', 'section_id')) {
+            && Schema::hasColumn('assignments', 'section_id')
+        ) {
             $assignmentQuery = DB::table('assignments as a')
                 ->where('a.section_id', $enrollment->section_id);
 
@@ -1210,15 +1318,20 @@ class DashboardController extends Controller
         $data['studentAssignments'] = $studentAssignments;
 
         $pendingAssignments = $studentAssignments->filter(function ($row) {
-            return in_array(strtolower((string) ($row->submission_status ?? 'pending')),
-                ['pending', 'draft', 'not_submitted', ''], true);
+            return in_array(
+                strtolower((string) ($row->submission_status ?? 'pending')),
+                ['pending', 'draft', 'not_submitted', ''],
+                true
+            );
         })->count();
         $completedAssignments = $studentAssignments->count() - $pendingAssignments;
 
         // Exam timetable and published marks for the active section.
         $studentExams = collect();
-        if ($enrollment && !empty($enrollment->section_id)
-            && Schema::hasTable('exam_subjects') && Schema::hasTable('examinations')) {
+        if (
+            $enrollment && !empty($enrollment->section_id)
+            && Schema::hasTable('exam_subjects') && Schema::hasTable('examinations')
+        ) {
             $examQuery = DB::table('exam_subjects as es')
                 ->join('examinations as ex', 'ex.id', '=', 'es.examination_id')
                 ->where('es.section_id', $enrollment->section_id)
@@ -1236,7 +1349,8 @@ class DashboardController extends Controller
 
             $examSelect = ['es.exam_date'];
             foreach (['start_time', 'end_time', 'maximum_marks', 'passing_marks', 'room_number'] as $column) {
-                if (Schema::hasColumn('exam_subjects', $column)) $examSelect[] = 'es.' . $column;
+                if (Schema::hasColumn('exam_subjects', $column))
+                    $examSelect[] = 'es.' . $column;
             }
             $examSelect[] = 'ex.name as exam_name';
             if (Schema::hasTable('subjects') && Schema::hasColumn('exam_subjects', 'subject_id')) {
@@ -1247,8 +1361,10 @@ class DashboardController extends Controller
         $data['studentExams'] = $studentExams;
 
         $results = collect();
-        if (Schema::hasTable('exam_results') && Schema::hasTable('exam_subjects')
-            && Schema::hasColumn('exam_results', 'student_id')) {
+        if (
+            Schema::hasTable('exam_results') && Schema::hasTable('exam_subjects')
+            && Schema::hasColumn('exam_results', 'student_id')
+        ) {
             $resultQuery = DB::table('exam_results as er')
                 ->join('exam_subjects as es', 'es.id', '=', 'er.exam_subject_id')
                 ->where('er.student_id', $studentId)
@@ -1261,30 +1377,35 @@ class DashboardController extends Controller
             }
             $resultSelect = ['er.marks_obtained'];
             foreach (['grade', 'published_at'] as $column) {
-                if (Schema::hasColumn('exam_results', $column)) $resultSelect[] = 'er.' . $column;
+                if (Schema::hasColumn('exam_results', $column))
+                    $resultSelect[] = 'er.' . $column;
             }
-            if (Schema::hasColumn('exam_subjects', 'maximum_marks')) $resultSelect[] = 'es.maximum_marks';
+            if (Schema::hasColumn('exam_subjects', 'maximum_marks'))
+                $resultSelect[] = 'es.maximum_marks';
             if (Schema::hasTable('subjects') && Schema::hasColumn('exam_subjects', 'subject_id')) {
                 $resultSelect[] = 'subj.name as subject_name';
             }
             $results = $resultQuery->orderByDesc('er.id')->get($resultSelect);
         }
 
-        $validResults = $results->filter(fn ($r) =>
-            is_numeric($r->marks_obtained ?? null) && (float) ($r->maximum_marks ?? 0) > 0
+        $validResults = $results->filter(
+            fn($r) =>
+                is_numeric($r->marks_obtained ?? null) && (float) ($r->maximum_marks ?? 0) > 0
         );
         $average = $validResults->isNotEmpty()
-            ? round($validResults->avg(fn ($r) =>
-                ((float) $r->marks_obtained / (float) $r->maximum_marks) * 100
+            ? round($validResults->avg(
+                fn($r) =>
+                    ((float) $r->marks_obtained / (float) $r->maximum_marks) * 100
             ), 1)
             : null;
 
-        $subjectPerformance = $validResults->groupBy(fn ($r) => $r->subject_name ?? 'Subject')
+        $subjectPerformance = $validResults->groupBy(fn($r) => $r->subject_name ?? 'Subject')
             ->map(function ($rows, $subjectName) {
                 return (object) [
                     'subject_name' => $subjectName,
-                    'percentage' => round($rows->avg(fn ($r) =>
-                        ((float) $r->marks_obtained / (float) $r->maximum_marks) * 100
+                    'percentage' => round($rows->avg(
+                        fn($r) =>
+                            ((float) $r->marks_obtained / (float) $r->maximum_marks) * 100
                     ), 1),
                 ];
             })->values();
@@ -1308,8 +1429,9 @@ class DashboardController extends Controller
                     return $date ? Carbon::parse($date)->startOfWeek()->format('Y-m-d') : 'unknown';
                 });
                 foreach ($byDate as $week => $rows) {
-                    if ($week === 'unknown') continue;
-                    $present = $rows->filter(fn ($r) => strtolower((string) $r->status) === 'present')->count();
+                    if ($week === 'unknown')
+                        continue;
+                    $present = $rows->filter(fn($r) => strtolower((string) $r->status) === 'present')->count();
                     $data['attendanceTrend']->push([
                         'label' => Carbon::parse($week)->format('d M'),
                         'percentage' => $rows->count() ? round($present / $rows->count() * 100, 1) : 0,
@@ -1319,8 +1441,10 @@ class DashboardController extends Controller
         }
 
         // Timetable entries for the active section and today's weekday.
-        if ($enrollment && !empty($enrollment->section_id)
-            && Schema::hasTable('timetable_entries') && Schema::hasTable('timetables')) {
+        if (
+            $enrollment && !empty($enrollment->section_id)
+            && Schema::hasTable('timetable_entries') && Schema::hasTable('timetables')
+        ) {
             $ttColumns = Schema::getColumnListing('timetable_entries');
             $ttQuery = DB::table('timetable_entries as te');
             $ttHasTimetableId = in_array('timetable_id', $ttColumns, true);
@@ -1342,7 +1466,7 @@ class DashboardController extends Controller
             }
 
             $dayColumn = collect(['day_of_week', 'weekday', 'day'])
-                ->first(fn ($column) => in_array($column, $ttColumns, true));
+                ->first(fn($column) => in_array($column, $ttColumns, true));
             if ($dayColumn) {
                 $dayName = strtolower(now()->format('l'));
                 $dayShort = strtolower(now()->format('D'));
@@ -1371,9 +1495,12 @@ class DashboardController extends Controller
             if (Schema::hasTable('staff_profiles') && in_array('staff_profile_id', $ttColumns, true)) {
                 $ttQuery->leftJoin('staff_profiles as tsp', 'tsp.id', '=', 'te.staff_profile_id');
                 $nameParts = [];
-                if (Schema::hasColumn('staff_profiles', 'first_name')) $nameParts[] = "tsp.first_name";
-                if (Schema::hasColumn('staff_profiles', 'last_name')) $nameParts[] = "tsp.last_name";
-                if ($nameParts) $ttSelect[] = DB::raw("TRIM(CONCAT(" . implode(", ' ', ", $nameParts) . ")) as teacher_name");
+                if (Schema::hasColumn('staff_profiles', 'first_name'))
+                    $nameParts[] = "tsp.first_name";
+                if (Schema::hasColumn('staff_profiles', 'last_name'))
+                    $nameParts[] = "tsp.last_name";
+                if ($nameParts)
+                    $ttSelect[] = DB::raw("TRIM(CONCAT(" . implode(", ' ', ", $nameParts) . ")) as teacher_name");
             }
 
             $data['todayTimetable'] = $ttQuery->orderByRaw(
@@ -1390,8 +1517,10 @@ class DashboardController extends Controller
         }
 
         // Subject list from the student's enrolled class.
-        if ($enrollment && !empty($enrollment->school_class_id)
-            && Schema::hasTable('class_subjects') && Schema::hasTable('subjects')) {
+        if (
+            $enrollment && !empty($enrollment->school_class_id)
+            && Schema::hasTable('class_subjects') && Schema::hasTable('subjects')
+        ) {
             $subjectQuery = DB::table('class_subjects as cs')
                 ->join('subjects as s', 's.id', '=', 'cs.subject_id')
                 ->where('cs.school_class_id', $enrollment->school_class_id);
@@ -1403,11 +1532,13 @@ class DashboardController extends Controller
                 's.name',
             ]);
 
-            if (Schema::hasTable('teaching_assignments')
+            if (
+                Schema::hasTable('teaching_assignments')
                 && Schema::hasColumn('teaching_assignments', 'class_subject_id')
                 && Schema::hasColumn('teaching_assignments', 'section_id')
                 && Schema::hasColumn('teaching_assignments', 'staff_profile_id')
-                && Schema::hasTable('staff_profiles')) {
+                && Schema::hasTable('staff_profiles')
+            ) {
                 $subjectQuery->leftJoin('teaching_assignments as ta', function ($join) use ($enrollment) {
                     $join->on('ta.class_subject_id', '=', 'cs.id')
                         ->where('ta.section_id', '=', $enrollment->section_id);
@@ -1429,8 +1560,10 @@ class DashboardController extends Controller
             $feeQuery = DB::table('fee_invoices')->where('student_id', $studentId);
             $feeColumns = Schema::getColumnListing('fee_invoices');
             $totalColumn = in_array('total_amount', $feeColumns, true) ? 'total_amount' : (in_array('amount', $feeColumns, true) ? 'amount' : null);
-            if ($totalColumn) $data['feeSummary']['total'] = (float) (clone $feeQuery)->sum($totalColumn);
-            if (in_array('paid_amount', $feeColumns, true)) $data['feeSummary']['paid'] = (float) (clone $feeQuery)->sum('paid_amount');
+            if ($totalColumn)
+                $data['feeSummary']['total'] = (float) (clone $feeQuery)->sum($totalColumn);
+            if (in_array('paid_amount', $feeColumns, true))
+                $data['feeSummary']['paid'] = (float) (clone $feeQuery)->sum('paid_amount');
             if (in_array('balance_amount', $feeColumns, true)) {
                 $data['feeSummary']['balance'] = (float) (clone $feeQuery)->sum('balance_amount');
             } else {
@@ -1454,7 +1587,8 @@ class DashboardController extends Controller
             $certificateColumns = Schema::getColumnListing('certificates');
             $select = ['id'];
             foreach (['title', 'name', 'certificate_type', 'issued_date', 'created_at', 'file_path', 'pdf_path', 'status'] as $column) {
-                if (in_array($column, $certificateColumns, true)) $select[] = $column;
+                if (in_array($column, $certificateColumns, true))
+                    $select[] = $column;
             }
             $data['studentDocuments'] = DB::table('certificates')->where('student_id', $studentId)
                 ->latest('id')->limit(8)->get($select)->map(function ($doc) {
@@ -1480,14 +1614,20 @@ class DashboardController extends Controller
             $transportAssignment = $transportQuery->latest('sta.id')->first();
             if ($transportAssignment) {
                 $transport = [
-                    'route_name' => null, 'stop_name' => null, 'pickup_time' => null,
-                    'drop_time' => null, 'trip_type' => $transportAssignment->trip_type ?? null,
+                    'route_name' => null,
+                    'stop_name' => null,
+                    'pickup_time' => null,
+                    'drop_time' => null,
+                    'trip_type' => $transportAssignment->trip_type ?? null,
                     'fee_amount' => $transportAssignment->fee_amount ?? null,
-                    'registration_number' => null, 'driver_name' => null, 'driver_phone' => null,
+                    'registration_number' => null,
+                    'driver_name' => null,
+                    'driver_phone' => null,
                 ];
                 if (!empty($transportAssignment->transport_route_id) && Schema::hasTable('transport_routes')) {
                     $route = DB::table('transport_routes')->where('id', $transportAssignment->transport_route_id)->first();
-                    if ($route) $transport['route_name'] = $route->name ?? $route->route_name ?? 'Assigned route';
+                    if ($route)
+                        $transport['route_name'] = $route->name ?? $route->route_name ?? 'Assigned route';
                 }
                 if (!empty($transportAssignment->transport_stop_id) && Schema::hasTable('transport_stops')) {
                     $stop = DB::table('transport_stops')->where('id', $transportAssignment->transport_stop_id)->first();
@@ -1502,8 +1642,10 @@ class DashboardController extends Controller
         }
 
         // Library: only current unreturned loans belonging to this student.
-        if (Schema::hasTable('library_loans') && Schema::hasTable('library_copies')
-            && Schema::hasTable('library_books')) {
+        if (
+            Schema::hasTable('library_loans') && Schema::hasTable('library_copies')
+            && Schema::hasTable('library_books')
+        ) {
             $loanCopyColumn = Schema::hasColumn('library_loans', 'library_copy_id')
                 ? 'library_copy_id'
                 : (Schema::hasColumn('library_loans', 'copy_id') ? 'copy_id' : null);
@@ -1518,9 +1660,12 @@ class DashboardController extends Controller
                     $loanQuery->whereIn('ll.status', ['issued', 'borrowed', 'active', 'overdue']);
                 }
                 $loanSelect = ['lb.title'];
-                foreach (['author'] as $column) if (Schema::hasColumn('library_books', $column)) $loanSelect[] = 'lb.' . $column;
+                foreach (['author'] as $column)
+                    if (Schema::hasColumn('library_books', $column))
+                        $loanSelect[] = 'lb.' . $column;
                 foreach (['issued_at', 'due_at', 'status', 'fine_amount'] as $column) {
-                    if (Schema::hasColumn('library_loans', $column)) $loanSelect[] = 'll.' . $column;
+                    if (Schema::hasColumn('library_loans', $column))
+                        $loanSelect[] = 'll.' . $column;
                 }
                 $data['borrowedBooks'] = $loanQuery->orderByDesc(
                     Schema::hasColumn('library_loans', 'issued_at') ? 'll.issued_at' : 'll.id'
@@ -1539,8 +1684,10 @@ class DashboardController extends Controller
         }
 
         // Hostel: allocation, room/bed, warden, allocation-linked invoices and payments.
-        if (Schema::hasTable('hostel_allocations') && Schema::hasTable('hostel_beds')
-            && Schema::hasTable('hostel_rooms') && Schema::hasTable('hostels')) {
+        if (
+            Schema::hasTable('hostel_allocations') && Schema::hasTable('hostel_beds')
+            && Schema::hasTable('hostel_rooms') && Schema::hasTable('hostels')
+        ) {
             $hostelQuery = DB::table('hostel_allocations as ha')
                 ->join('hostel_beds as hb', 'hb.id', '=', 'ha.hostel_bed_id')
                 ->join('hostel_rooms as hr', 'hr.id', '=', 'hb.hostel_room_id')
@@ -1550,9 +1697,18 @@ class DashboardController extends Controller
                 $hostelQuery->where('ha.status', 'active');
             }
             $hostelAllocation = $hostelQuery->orderByDesc('ha.id')->first([
-                'ha.id as allocation_id', 'ha.start_date', 'ha.end_date', 'ha.status as allocation_status',
-                'hb.bed_number', 'hr.room_number', 'hr.fee_per_term', 'h.id as hostel_id',
-                'h.name as hostel_name', 'h.hostel_type', 'h.warden_name', 'h.warden_phone',
+                'ha.id as allocation_id',
+                'ha.start_date',
+                'ha.end_date',
+                'ha.status as allocation_status',
+                'hb.bed_number',
+                'hr.room_number',
+                'hr.fee_per_term',
+                'h.id as hostel_id',
+                'h.name as hostel_name',
+                'h.hostel_type',
+                'h.warden_name',
+                'h.warden_phone',
             ]);
 
             if ($hostelAllocation) {
@@ -1597,42 +1753,49 @@ class DashboardController extends Controller
         // Published announcements and upcoming school events.
         if (Schema::hasTable('announcements')) {
             $annQuery = DB::table('announcements')->whereIn('status', ['published', 'active']);
-            if ($schoolId && Schema::hasColumn('announcements', 'school_id')) $annQuery->where('school_id', $schoolId);
+            if ($schoolId && Schema::hasColumn('announcements', 'school_id'))
+                $annQuery->where('school_id', $schoolId);
             if ($campusId && Schema::hasColumn('announcements', 'campus_id')) {
-                $annQuery->where(fn ($q) => $q->whereNull('campus_id')->orWhere('campus_id', $campusId));
+                $annQuery->where(fn($q) => $q->whereNull('campus_id')->orWhere('campus_id', $campusId));
             }
             if (Schema::hasColumn('announcements', 'published_at')) {
-                $annQuery->where(fn ($q) => $q->whereNull('published_at')->orWhere('published_at', '<=', now()));
+                $annQuery->where(fn($q) => $q->whereNull('published_at')->orWhere('published_at', '<=', now()));
                 $annQuery->orderByDesc('published_at');
             } else {
                 $annQuery->orderByDesc('id');
             }
             $annSelect = ['title'];
             foreach (['content', 'description', 'published_at'] as $column) {
-                if (Schema::hasColumn('announcements', $column)) $annSelect[] = $column;
+                if (Schema::hasColumn('announcements', $column))
+                    $annSelect[] = $column;
             }
             $data['studentAnnouncements'] = $annQuery->limit(6)->get($annSelect);
         }
 
         if (Schema::hasTable('events') && Schema::hasColumn('events', 'starts_at')) {
             $eventQuery = DB::table('events')->whereDate('starts_at', '>=', today());
-            if ($schoolId && Schema::hasColumn('events', 'school_id')) $eventQuery->where('school_id', $schoolId);
+            if ($schoolId && Schema::hasColumn('events', 'school_id'))
+                $eventQuery->where('school_id', $schoolId);
             if ($campusId && Schema::hasColumn('events', 'campus_id')) {
-                $eventQuery->where(fn ($q) => $q->whereNull('campus_id')->orWhere('campus_id', $campusId));
+                $eventQuery->where(fn($q) => $q->whereNull('campus_id')->orWhere('campus_id', $campusId));
             }
             $eventSelect = ['title', 'starts_at'];
-            if (Schema::hasColumn('events', 'venue')) $eventSelect[] = 'venue';
+            if (Schema::hasColumn('events', 'venue'))
+                $eventSelect[] = 'venue';
             $data['studentEvents'] = $eventQuery->orderBy('starts_at')->limit(6)->get($eventSelect);
         }
 
         // Optional resources table: only read it when its student/class linkage is known.
-        if (Schema::hasTable('learning_resources') && $enrollment
+        if (
+            Schema::hasTable('learning_resources') && $enrollment
             && Schema::hasColumn('learning_resources', 'section_id')
-            && Schema::hasColumn('learning_resources', 'title')) {
+            && Schema::hasColumn('learning_resources', 'title')
+        ) {
             $resourceQuery = DB::table('learning_resources')->where('section_id', $enrollment->section_id);
             $resourceSelect = ['title'];
             foreach (['url', 'file_path', 'subject_id'] as $column) {
-                if (Schema::hasColumn('learning_resources', $column)) $resourceSelect[] = $column;
+                if (Schema::hasColumn('learning_resources', $column))
+                    $resourceSelect[] = $column;
             }
             if (Schema::hasTable('subjects') && Schema::hasColumn('learning_resources', 'subject_id')) {
                 $resourceQuery->leftJoin('subjects', 'subjects.id', '=', 'learning_resources.subject_id');
@@ -1642,16 +1805,17 @@ class DashboardController extends Controller
                 ->map(function ($resource) {
                     $resource->url = $resource->url ?? (
                         !empty($resource->file_path)
-                            ? \Illuminate\Support\Facades\Storage::disk('public')->url($resource->file_path)
-                            : null
+                        ? \Illuminate\Support\Facades\Storage::disk('public')->url($resource->file_path)
+                        : null
                     );
                     return $resource;
                 });
         }
 
         $submissionTotal = $studentAssignments->count();
-        $submittedTotal = $studentAssignments->filter(fn ($row) =>
-            !empty($row->submitted_at) || in_array(strtolower((string) ($row->submission_status ?? '')), ['submitted', 'evaluated', 'completed'], true)
+        $submittedTotal = $studentAssignments->filter(
+            fn($row) =>
+                !empty($row->submitted_at) || in_array(strtolower((string) ($row->submission_status ?? '')), ['submitted', 'evaluated', 'completed'], true)
         )->count();
 
         $data['studentPerformance'] = [
@@ -1693,9 +1857,12 @@ class DashboardController extends Controller
         $payments = DB::table('fee_payments');
         if (Schema::hasTable('fee_invoices')) {
             $payments->join('fee_invoices', 'fee_invoices.id', '=', 'fee_payments.fee_invoice_id');
-            if ($schoolId) $payments->where('fee_invoices.school_id', $schoolId);
-            if ($campusId && Schema::hasColumn('fee_invoices', 'campus_id')) $payments->where('fee_invoices.campus_id', $campusId);
-            if ($academicYearId && Schema::hasColumn('fee_invoices', 'academic_year_id')) $payments->where('fee_invoices.academic_year_id', $academicYearId);
+            if ($schoolId)
+                $payments->where('fee_invoices.school_id', $schoolId);
+            if ($campusId && Schema::hasColumn('fee_invoices', 'campus_id'))
+                $payments->where('fee_invoices.campus_id', $campusId);
+            if ($academicYearId && Schema::hasColumn('fee_invoices', 'academic_year_id'))
+                $payments->where('fee_invoices.academic_year_id', $academicYearId);
         }
 
         return [
@@ -1729,14 +1896,19 @@ class DashboardController extends Controller
             }
         }
 
-        $teacherCount = $this->schoolCount('staff_profiles', $schoolId, $campusId,
-            fn($q) => $q->where('designation', 'LIKE', '%teacher%'));
+        $teacherCount = $this->schoolCount(
+            'staff_profiles',
+            $schoolId,
+            $campusId,
+            fn($q) => $q->where('designation', 'LIKE', '%teacher%')
+        );
         $staffCount = $this->schoolCount('staff_profiles', $schoolId, $campusId);
 
         $feeStatus = ['Paid' => 0, 'Partial' => 0, 'Pending' => 0, 'Overdue' => 0];
         if (Schema::hasTable('fee_invoices')) {
             $q = $this->schoolScopedQuery('fee_invoices', $schoolId, $campusId);
-            if ($academicYearId && Schema::hasColumn('fee_invoices', 'academic_year_id')) $q->where('academic_year_id', $academicYearId);
+            if ($academicYearId && Schema::hasColumn('fee_invoices', 'academic_year_id'))
+                $q->where('academic_year_id', $academicYearId);
             $feeStatus['Paid'] = (clone $q)->where('balance_amount', '<=', 0)->count();
             $feeStatus['Overdue'] = (clone $q)->where('balance_amount', '>', 0)->whereDate('due_date', '<', today())->count();
             $feeStatus['Partial'] = (clone $q)->where('paid_amount', '>', 0)->where('balance_amount', '>', 0)->whereDate('due_date', '>=', today())->count();
@@ -1751,9 +1923,12 @@ class DashboardController extends Controller
                 $q = DB::table('fee_payments')->join('fee_invoices', 'fee_invoices.id', '=', 'fee_payments.fee_invoice_id')
                     ->where('fee_payments.status', 'paid')->whereYear('fee_payments.paid_at', $m->year)
                     ->whereMonth('fee_payments.paid_at', $m->month);
-                if ($schoolId) $q->where('fee_invoices.school_id', $schoolId);
-                if ($campusId && Schema::hasColumn('fee_invoices', 'campus_id')) $q->where('fee_invoices.campus_id', $campusId);
-                if ($academicYearId && Schema::hasColumn('fee_invoices', 'academic_year_id')) $q->where('fee_invoices.academic_year_id', $academicYearId);
+                if ($schoolId)
+                    $q->where('fee_invoices.school_id', $schoolId);
+                if ($campusId && Schema::hasColumn('fee_invoices', 'campus_id'))
+                    $q->where('fee_invoices.campus_id', $campusId);
+                if ($academicYearId && Schema::hasColumn('fee_invoices', 'academic_year_id'))
+                    $q->where('fee_invoices.academic_year_id', $academicYearId);
                 $total = (float) $q->sum('fee_payments.amount');
             }
             $monthlyFees[] = ['label' => $m->format('M'), 'total' => round($total, 2)];
@@ -1761,12 +1936,16 @@ class DashboardController extends Controller
 
         $attendanceTrend = [];
         for ($i = 6; $i >= 0; $i--) {
-            $d = today()->subDays($i); $total = 0; $present = 0;
+            $d = today()->subDays($i);
+            $total = 0;
+            $present = 0;
             if (Schema::hasTable('student_attendance') && Schema::hasTable('attendance_sessions')) {
                 $q = DB::table('student_attendance')->join('attendance_sessions', 'attendance_sessions.id', '=', 'student_attendance.attendance_session_id')
                     ->whereDate('attendance_sessions.attendance_date', $d);
-                if ($schoolId) $q->where('attendance_sessions.school_id', $schoolId);
-                if ($campusId) $q->where('attendance_sessions.campus_id', $campusId);
+                if ($schoolId)
+                    $q->where('attendance_sessions.school_id', $schoolId);
+                if ($campusId)
+                    $q->where('attendance_sessions.campus_id', $campusId);
                 $total = (clone $q)->count();
                 $present = (clone $q)->whereIn('student_attendance.status', ['present', 'Present'])->count();
             }
@@ -1777,8 +1956,10 @@ class DashboardController extends Controller
         if (Schema::hasTable('student_enrollments') && Schema::hasTable('school_classes')) {
             $q = DB::table('student_enrollments')->join('school_classes', 'school_classes.id', '=', 'student_enrollments.school_class_id')
                 ->where('student_enrollments.status', 'active');
-            if ($schoolId) $q->where('school_classes.school_id', $schoolId);
-            if ($academicYearId) $q->where('student_enrollments.academic_year_id', $academicYearId);
+            if ($schoolId)
+                $q->where('school_classes.school_id', $schoolId);
+            if ($academicYearId)
+                $q->where('student_enrollments.academic_year_id', $academicYearId);
             if ($campusId && Schema::hasTable('sections')) {
                 $q->join('sections', 'sections.id', '=', 'student_enrollments.section_id')->where('sections.campus_id', $campusId);
             }
@@ -1791,8 +1972,10 @@ class DashboardController extends Controller
         if (Schema::hasTable('exam_results') && Schema::hasTable('exam_subjects') && Schema::hasTable('examinations')) {
             $q = DB::table('exam_results')->join('exam_subjects', 'exam_subjects.id', '=', 'exam_results.exam_subject_id')
                 ->join('examinations', 'examinations.id', '=', 'exam_subjects.examination_id');
-            if ($schoolId) $q->where('examinations.school_id', $schoolId);
-            if ($academicYearId && Schema::hasColumn('examinations', 'academic_year_id')) $q->where('examinations.academic_year_id', $academicYearId);
+            if ($schoolId)
+                $q->where('examinations.school_id', $schoolId);
+            if ($academicYearId && Schema::hasColumn('examinations', 'academic_year_id'))
+                $q->where('examinations.academic_year_id', $academicYearId);
             $examPerformance['Passed'] = (clone $q)->whereNotNull('exam_results.marks_obtained')
                 ->whereRaw('exam_results.marks_obtained >= exam_subjects.passing_marks')->count();
             $examPerformance['Needs Improvement'] = (clone $q)->whereNotNull('exam_results.marks_obtained')
@@ -1802,8 +1985,10 @@ class DashboardController extends Controller
         return [
             'studentGender' => $gender,
             'staffDistribution' => ['Teaching' => $teacherCount, 'Non-teaching' => max(0, $staffCount - $teacherCount)],
-            'feeStatus' => $feeStatus, 'monthlyFees' => $monthlyFees,
-            'attendanceTrend' => $attendanceTrend, 'classStrength' => $classStrength,
+            'feeStatus' => $feeStatus,
+            'monthlyFees' => $monthlyFees,
+            'attendanceTrend' => $attendanceTrend,
+            'classStrength' => $classStrength,
             'examPerformance' => $examPerformance,
         ];
     }
@@ -1811,28 +1996,36 @@ class DashboardController extends Controller
     private function schoolScopedQuery(string $table, ?int $schoolId, ?int $campusId)
     {
         $q = DB::table($table);
-        if ($schoolId && Schema::hasColumn($table, 'school_id')) $q->where("$table.school_id", $schoolId);
-        if ($campusId && Schema::hasColumn($table, 'campus_id')) $q->where("$table.campus_id", $campusId);
-        if (Schema::hasColumn($table, 'deleted_at')) $q->whereNull("$table.deleted_at");
+        if ($schoolId && Schema::hasColumn($table, 'school_id'))
+            $q->where("$table.school_id", $schoolId);
+        if ($campusId && Schema::hasColumn($table, 'campus_id'))
+            $q->where("$table.campus_id", $campusId);
+        if (Schema::hasColumn($table, 'deleted_at'))
+            $q->whereNull("$table.deleted_at");
         return $q;
     }
 
     private function staffAttendanceToday(?int $schoolId, ?int $campusId, string $status): int
     {
-        if (!Schema::hasTable('employee_attendance') || !Schema::hasTable('staff_profiles')) return 0;
+        if (!Schema::hasTable('employee_attendance') || !Schema::hasTable('staff_profiles'))
+            return 0;
         $q = DB::table('employee_attendance')->join('staff_profiles', 'staff_profiles.id', '=', 'employee_attendance.staff_profile_id')
             ->whereDate('employee_attendance.attendance_date', today())->where('employee_attendance.status', $status);
-        if ($schoolId) $q->where('staff_profiles.school_id', $schoolId);
-        if ($campusId) $q->where('staff_profiles.campus_id', $campusId);
+        if ($schoolId)
+            $q->where('staff_profiles.school_id', $schoolId);
+        if ($campusId)
+            $q->where('staff_profiles.campus_id', $campusId);
         return $q->count();
     }
 
     private function upcomingExamCount(?int $schoolId, ?int $campusId): int
     {
-        if (!Schema::hasTable('exam_subjects') || !Schema::hasTable('examinations')) return 0;
+        if (!Schema::hasTable('exam_subjects') || !Schema::hasTable('examinations'))
+            return 0;
         $q = DB::table('exam_subjects')->join('examinations', 'examinations.id', '=', 'exam_subjects.examination_id')
             ->whereDate('exam_subjects.exam_date', '>=', today());
-        if ($schoolId) $q->where('examinations.school_id', $schoolId);
+        if ($schoolId)
+            $q->where('examinations.school_id', $schoolId);
         if ($campusId && Schema::hasTable('sections')) {
             $q->join('sections', 'sections.id', '=', 'exam_subjects.section_id')->where('sections.campus_id', $campusId);
         }
@@ -1841,17 +2034,21 @@ class DashboardController extends Controller
 
     private function availableCampuses(?int $schoolId): Collection
     {
-        if (!Schema::hasTable('campuses')) return collect();
+        if (!Schema::hasTable('campuses'))
+            return collect();
         $q = DB::table('campuses')->select('id', 'name')->orderBy('name');
-        if ($schoolId) $q->where('school_id', $schoolId);
+        if ($schoolId)
+            $q->where('school_id', $schoolId);
         return $q->get();
     }
 
     private function availableAcademicYears(?int $schoolId): Collection
     {
-        if (!Schema::hasTable('academic_years')) return collect();
+        if (!Schema::hasTable('academic_years'))
+            return collect();
         $q = DB::table('academic_years')->select('id', 'name', 'status')->orderByDesc('start_date');
-        if ($schoolId) $q->where('school_id', $schoolId);
+        if ($schoolId)
+            $q->where('school_id', $schoolId);
         return $q->get();
     }
 
@@ -1868,7 +2065,8 @@ class DashboardController extends Controller
 
     private function activeRoleCodes(): array
     {
-        if (!Schema::hasTable('user_role_assignments') || !Schema::hasTable('roles')) return [];
+        if (!Schema::hasTable('user_role_assignments') || !Schema::hasTable('roles'))
+            return [];
 
         return DB::table('user_role_assignments')
             ->join('roles', 'roles.id', '=', 'user_role_assignments.role_id')
@@ -1876,11 +2074,11 @@ class DashboardController extends Controller
             ->where('user_role_assignments.is_active', 1)
             ->where(function ($q) {
                 $q->whereNull('user_role_assignments.starts_at')
-                  ->orWhere('user_role_assignments.starts_at', '<=', now());
+                    ->orWhere('user_role_assignments.starts_at', '<=', now());
             })
             ->where(function ($q) {
                 $q->whereNull('user_role_assignments.expires_at')
-                  ->orWhere('user_role_assignments.expires_at', '>=', now());
+                    ->orWhere('user_role_assignments.expires_at', '>=', now());
             })
             ->where('roles.is_active', 1)
             ->pluck('roles.code')->all();
@@ -1890,7 +2088,9 @@ class DashboardController extends Controller
     {
         $roles = $this->activeRoleCodes();
         $priority = ['SUPER_ADMIN', 'ORG_ADMIN', 'SCHOOL_ADMIN', 'PRINCIPAL', 'TEACHER', 'ACCOUNTANT', 'LIBRARIAN', 'TRANSPORT_MANAGER', 'HR_MANAGER', 'STUDENT', 'PARENT'];
-        foreach ($priority as $code) if (in_array($code, $roles, true)) return $code;
+        foreach ($priority as $code)
+            if (in_array($code, $roles, true))
+                return $code;
         return $roles[0] ?? null;
     }
 
@@ -1917,31 +2117,41 @@ class DashboardController extends Controller
 
     private function schoolCount(string $table, ?int $schoolId, ?int $campusId, ?callable $extra = null): int
     {
-        if (!Schema::hasTable($table)) return 0;
+        if (!Schema::hasTable($table))
+            return 0;
         $q = DB::table($table);
-        if ($schoolId && Schema::hasColumn($table, 'school_id')) $q->where('school_id', $schoolId);
-        if ($campusId && Schema::hasColumn($table, 'campus_id')) $q->where('campus_id', $campusId);
-        if (Schema::hasColumn($table, 'deleted_at')) $q->whereNull('deleted_at');
-        if ($extra) $extra($q);
+        if ($schoolId && Schema::hasColumn($table, 'school_id'))
+            $q->where('school_id', $schoolId);
+        if ($campusId && Schema::hasColumn($table, 'campus_id'))
+            $q->where('campus_id', $campusId);
+        if (Schema::hasColumn($table, 'deleted_at'))
+            $q->whereNull('deleted_at');
+        if ($extra)
+            $extra($q);
         return $q->count();
     }
 
     private function todayAttendanceCount(?int $schoolId, ?int $campusId): int
     {
-        if (!Schema::hasTable('student_attendance') || !Schema::hasTable('attendance_sessions')) return 0;
+        if (!Schema::hasTable('student_attendance') || !Schema::hasTable('attendance_sessions'))
+            return 0;
         $q = DB::table('student_attendance')
             ->join('attendance_sessions', 'attendance_sessions.id', '=', 'student_attendance.attendance_session_id')
             ->whereDate('attendance_sessions.attendance_date', today());
-        if ($schoolId) $q->where('attendance_sessions.school_id', $schoolId);
-        if ($campusId) $q->where('attendance_sessions.campus_id', $campusId);
+        if ($schoolId)
+            $q->where('attendance_sessions.school_id', $schoolId);
+        if ($campusId)
+            $q->where('attendance_sessions.campus_id', $campusId);
         return $q->count();
     }
 
     private function approvalCount(?int $schoolId): int
     {
-        if (!Schema::hasTable('caspa_approval_requests')) return 0;
+        if (!Schema::hasTable('caspa_approval_requests'))
+            return 0;
         $q = DB::table('caspa_approval_requests')->whereIn('status', ['pending', 'submitted', 'in_review']);
-        if ($schoolId) $q->where('school_id', $schoolId);
+        if ($schoolId)
+            $q->where('school_id', $schoolId);
         return $q->count();
     }
 
@@ -2008,12 +2218,16 @@ class DashboardController extends Controller
 
     private function upcomingEvents(?int $schoolId, ?int $campusId): Collection
     {
-        if (!Schema::hasTable('events')) return collect();
+        if (!Schema::hasTable('events'))
+            return collect();
         $q = DB::table('events')->whereDate('starts_at', '>=', today())->orderBy('starts_at');
-        if ($schoolId) $q->where('school_id', $schoolId);
-        if ($campusId) $q->where(function ($x) use ($campusId) { $x->whereNull('campus_id')->orWhere('campus_id', $campusId); });
+        if ($schoolId)
+            $q->where('school_id', $schoolId);
+        if ($campusId)
+            $q->where(function ($x) use ($campusId) {
+                $x->whereNull('campus_id')->orWhere('campus_id', $campusId); });
         return $q->limit(6)->get(['title', 'starts_at', 'status'])
-            ->map(fn ($x) => (object)['title' => $x->title, 'date' => $x->starts_at, 'status' => $x->status]);
+            ->map(fn($x) => (object) ['title' => $x->title, 'date' => $x->starts_at, 'status' => $x->status]);
     }
 
     private function studentAttendanceCount(int $studentId): int
@@ -2025,14 +2239,16 @@ class DashboardController extends Controller
 
     private function studentAssignmentCount(int $studentId, bool $completed): int
     {
-        if (!Schema::hasTable('assignment_submissions')) return 0;
+        if (!Schema::hasTable('assignment_submissions'))
+            return 0;
         $q = DB::table('assignment_submissions')->where('student_id', $studentId);
         return $completed ? $q->whereNotNull('submitted_at')->count() : $q->whereNull('submitted_at')->count();
     }
 
     private function studentExamCount(int $studentId): int
     {
-        if (!Schema::hasTable('student_enrollments') || !Schema::hasTable('exam_subjects') || !Schema::hasTable('examinations')) return 0;
+        if (!Schema::hasTable('student_enrollments') || !Schema::hasTable('exam_subjects') || !Schema::hasTable('examinations'))
+            return 0;
         $sectionIds = DB::table('student_enrollments')->where('student_id', $studentId)->where('status', 'active')->pluck('section_id');
         return DB::table('exam_subjects')->join('examinations', 'examinations.id', '=', 'exam_subjects.examination_id')
             ->whereIn('exam_subjects.section_id', $sectionIds)->whereDate('exam_subjects.exam_date', '>=', today())->count();
@@ -2040,7 +2256,8 @@ class DashboardController extends Controller
 
     private function studentRecentAssignments(int $studentId): Collection
     {
-        if (!Schema::hasTable('assignment_submissions') || !Schema::hasTable('assignments')) return collect();
+        if (!Schema::hasTable('assignment_submissions') || !Schema::hasTable('assignments'))
+            return collect();
         return DB::table('assignment_submissions')->join('assignments', 'assignments.id', '=', 'assignment_submissions.assignment_id')
             ->where('assignment_submissions.student_id', $studentId)->orderByDesc('assignment_submissions.created_at')
             ->limit(8)->get(['assignments.title', 'assignment_submissions.created_at', 'assignment_submissions.status']);
@@ -2048,10 +2265,11 @@ class DashboardController extends Controller
 
     private function studentUpcomingAssignments(int $studentId): Collection
     {
-        if (!Schema::hasTable('student_enrollments') || !Schema::hasTable('assignments')) return collect();
+        if (!Schema::hasTable('student_enrollments') || !Schema::hasTable('assignments'))
+            return collect();
         $sectionIds = DB::table('student_enrollments')->where('student_id', $studentId)->where('status', 'active')->pluck('section_id');
         return DB::table('assignments')->whereIn('section_id', $sectionIds)->whereDate('due_date', '>=', today())
             ->orderBy('due_date')->limit(6)->get(['title', 'due_date', 'status'])
-            ->map(fn ($x) => (object)['title' => $x->title, 'date' => $x->due_date, 'status' => $x->status]);
+            ->map(fn($x) => (object) ['title' => $x->title, 'date' => $x->due_date, 'status' => $x->status]);
     }
 }

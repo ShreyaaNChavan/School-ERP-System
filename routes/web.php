@@ -537,18 +537,38 @@ Route::middleware('permission:ACADEMICS.VIEW')->group(function () {
 | Add these routes inside your existing authenticated route group.
 | Do not duplicate an existing attendance route group.
 */
-Route::middleware('permission:ATTENDANCE.VIEW')->group(function () {
-    Route::get('/attendance', [\App\Http\Controllers\AttendanceController::class, 'index'])
-        ->name('attendance.index');
+// Route::middleware('permission:ATTENDANCE.VIEW')->group(function () {
+//     Route::get('/attendance', [\App\Http\Controllers\AttendanceController::class, 'index'])
+//         ->name('attendance.index');
 
-    Route::get('/attendance/reports', [\App\Http\Controllers\AttendanceController::class, 'report'])
-        ->middleware('permission:ATTENDANCE.EXPORT')
-        ->name('attendance.report');
+//     Route::get('/attendance/reports', [\App\Http\Controllers\AttendanceController::class, 'report'])
+//         ->middleware('permission:ATTENDANCE.EXPORT')
+//         ->name('attendance.report');
+// });
+
+// Route::post('/attendance', [\App\Http\Controllers\AttendanceController::class, 'store'])
+//     ->middleware('permission:ATTENDANCE.CREATE')
+//     ->name('attendance.store');
+// Attendance Management
+Route::middleware(['auth', 'permission:ATTENDANCE.VIEW'])->group(function () {
+
+    Route::get('/attendance', [
+        \App\Http\Controllers\AttendanceController::class,
+        'index'
+    ])->name('attendance.index');
+
+    // Teachers can VIEW attendance reports with ATTENDANCE.VIEW
+    Route::get('/attendance/reports', [
+        \App\Http\Controllers\AttendanceController::class,
+        'report'
+    ])->name('attendance.report');
 });
 
-Route::post('/attendance', [\App\Http\Controllers\AttendanceController::class, 'store'])
-    ->middleware('permission:ATTENDANCE.CREATE')
-    ->name('attendance.store');
+Route::post('/attendance', [
+    \App\Http\Controllers\AttendanceController::class,
+    'store'
+])->middleware(['auth', 'permission:ATTENDANCE.CREATE'])
+  ->name('attendance.store');
 
 
 /*
@@ -1367,4 +1387,61 @@ Route::middleware(['auth'])
         Route::post('/messages/{id}/reply', [ParentMessageController::class, 'reply'])
             ->whereNumber('id')
             ->name('messages.reply');
+    });
+
+
+
+use App\Http\Controllers\Teacher\TeacherSelfServiceController;
+use App\Http\Controllers\Teacher\TeacherCommunicationController;
+use App\Http\Controllers\Teacher\TeacherMarksEntryController;
+
+Route::middleware(['auth'])
+    ->prefix('teacher')
+    ->name('teacher.')
+    ->group(function () {
+        // My profile
+        Route::get('/profile', [TeacherSelfServiceController::class, 'profile'])
+            ->name('profile.show');
+        Route::get('/profile/edit', [TeacherSelfServiceController::class, 'editProfile'])
+            ->name('profile.edit');
+        Route::put('/profile', [TeacherSelfServiceController::class, 'updateProfile'])
+            ->name('profile.update');
+
+        // My own staff attendance (not student attendance)
+        Route::get('/attendance', [TeacherSelfServiceController::class, 'attendance'])
+            ->name('attendance.index');
+
+        // My own payroll and payslips
+        Route::get('/payroll', [TeacherSelfServiceController::class, 'payroll'])
+            ->name('payroll.index');
+        Route::get('/payroll/{record}/payslip', [TeacherSelfServiceController::class, 'payslip'])
+            ->whereNumber('record')
+            ->name('payroll.payslip');
+
+        // Teacher-to-parent / principal conversations
+        Route::get('/messages', [TeacherCommunicationController::class, 'index'])
+            ->name('messages.index');
+        Route::get('/messages/compose', [TeacherCommunicationController::class, 'compose'])
+            ->name('messages.compose');
+        Route::post('/messages', [TeacherCommunicationController::class, 'send'])
+            ->name('messages.send');
+        Route::get('/messages/{id}', [TeacherCommunicationController::class, 'show'])
+            ->whereNumber('id')
+            ->name('messages.show');
+        Route::post('/messages/{id}/reply', [TeacherCommunicationController::class, 'reply'])
+            ->whereNumber('id')
+            ->name('messages.reply');
+
+        // Teacher marks entry - only the teacher's assigned exam subjects
+        Route::get('/marks-entry', [TeacherMarksEntryController::class, 'index'])
+            ->name('marks.index');
+        Route::get('/marks-entry/{examSubject}', [TeacherMarksEntryController::class, 'show'])
+            ->whereNumber('examSubject')
+            ->name('marks.show');
+        Route::post('/marks-entry/{examSubject}/save', [TeacherMarksEntryController::class, 'save'])
+            ->whereNumber('examSubject')
+            ->name('marks.save');
+        Route::post('/marks-entry/{examSubject}/publish', [TeacherMarksEntryController::class, 'publish'])
+            ->whereNumber('examSubject')
+            ->name('marks.publish');
     });

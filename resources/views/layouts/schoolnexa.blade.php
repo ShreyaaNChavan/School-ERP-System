@@ -984,23 +984,65 @@
     <div class="app">
         @include('partials.sidebar')
         <main class="main">
-            <header class="topbar">
-                <input class="search" type="search" placeholder="⌕  Search platform...">
+            <header class="topbar sn-topbar">
+                <div class="sn-search-wrap">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input class="search" id="snGlobalSearch" type="search"
+                           placeholder="Search pages and modules..." autocomplete="off"
+                           aria-label="Search platform" aria-expanded="false">
+                    <kbd>⌘ K</kbd>
+                    <div class="sn-search-results" id="snSearchResults" role="listbox" hidden></div>
+                </div>
+
                 <div class="top-actions">
-                    <select class="top-select" aria-label="Academic year">
-                        <option>Platform overview</option>
-                    </select>
-                    <select class="top-select" aria-label="Language">
-                        <option>English</option>
-                    </select>
-                    <button class="top-button" type="button" title="Quick actions">＋</button>
-                    <button class="top-button" type="button" title="Display settings">☼</button>
-                    <button class="top-button" type="button" title="Notifications">♧</button>
-                    <div class="top-avatar">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</div>
-                    <form method="POST" action="{{ route('logout') }}">
-                        @csrf
-                        <button class="top-button" type="submit" title="Logout">↪</button>
-                    </form>
+                    <span class="sn-context-label"><i class="fa-solid fa-layer-group"></i> Platform overview</span>
+
+                    <div class="sn-top-dropdown">
+                        <button class="top-button" type="button" id="snQuickBtn" title="Quick actions" aria-expanded="false">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                        <div class="sn-top-menu sn-quick-menu" id="snQuickMenu" hidden>
+                            <strong>Quick access</strong>
+                            <div id="snQuickLinks"><span class="sn-menu-empty">Loading shortcuts…</span></div>
+                        </div>
+                    </div>
+
+                    <button class="top-button" type="button" id="snThemeBtn" title="Toggle dark mode" aria-label="Toggle dark mode">
+                        <i class="fa-regular fa-moon"></i>
+                    </button>
+
+                    <div class="sn-top-dropdown">
+                        <button class="top-button sn-notification-btn" type="button" id="snNotificationBtn"
+                                title="Notifications" aria-expanded="false">
+                            <i class="fa-regular fa-bell"></i><span class="sn-notification-dot"></span>
+                        </button>
+                        <div class="sn-top-menu sn-notification-menu" id="snNotificationMenu" hidden>
+                            <div class="sn-menu-heading"><strong>Notifications</strong><span>Recent updates</span></div>
+                            <div class="sn-notification-empty">
+                                <i class="fa-regular fa-bell-slash"></i>
+                                <strong>You're all caught up</strong>
+                                <span>New notifications will appear here when available.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="sn-top-dropdown">
+                        <button class="sn-profile-trigger" type="button" id="snProfileBtn" aria-expanded="false">
+                            <span class="top-avatar">{{ strtoupper(substr(auth()->user()->name ?? 'U', 0, 1)) }}</span>
+                            <span class="sn-profile-trigger-name">{{ auth()->user()->name ?? 'Account' }}</span>
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </button>
+                        <div class="sn-top-menu sn-profile-menu" id="snProfileMenu" hidden>
+                            <div class="sn-profile-summary">
+                                <strong>{{ auth()->user()->name ?? 'User' }}</strong>
+                                <span>{{ auth()->user()->email ?? '' }}</span>
+                            </div>
+                            <form method="POST" action="{{ route('logout') }}">
+                                @csrf
+                                <button class="sn-logout-action" type="submit"><i class="fa-solid fa-right-from-bracket"></i> Sign out</button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             </header>
 
@@ -1383,6 +1425,64 @@
                 display: none;
             }
         }
+
+        /* Interactive SchoolNexa topbar */
+        .sn-topbar { gap:18px; }
+        .sn-search-wrap { position:relative; width:min(430px,48%); display:flex; align-items:center; }
+        .sn-search-wrap>i { position:absolute; left:13px; color:#8292a6; z-index:1; }
+        .sn-search-wrap .search { width:100%; padding:10px 48px 10px 37px; color:#263b52; outline:none; }
+        .sn-search-wrap .search:focus { border-color:#4c91c7; box-shadow:0 0 0 3px rgba(76,145,199,.12); background:#fff; }
+        .sn-search-wrap kbd { position:absolute; right:10px; color:#91a0b1; background:#f1f4f8; border:1px solid #e3e8ef; border-radius:4px; padding:2px 5px; font-size:9px; }
+        .sn-search-results,.sn-top-menu { position:absolute; top:calc(100% + 9px); right:0; z-index:1000; background:#fff; border:1px solid #e4eaf1; border-radius:11px; box-shadow:0 14px 38px rgba(20,42,67,.16); color:#263b52; }
+        .sn-search-results { left:0; right:auto; width:100%; max-height:380px; overflow:auto; padding:7px; }
+        .sn-search-results a,.sn-quick-link { display:flex; align-items:center; gap:10px; padding:10px; border-radius:7px; color:#344b63; font-size:12px; }
+        .sn-search-results a:hover,.sn-quick-link:hover { background:#eff6fc; color:#176ca7; }
+        .sn-search-results a i,.sn-quick-link i { width:17px; color:#6485a3; text-align:center; }
+        .sn-search-empty,.sn-menu-empty { display:block; padding:13px; color:#8a98a9; font-size:11px; }
+        .sn-context-label { display:flex; align-items:center; gap:7px; color:#64758a; font-size:11px; white-space:nowrap; padding:0 5px; }
+        .sn-context-label i { color:#4380ad; }
+        .sn-top-dropdown { position:relative; }
+        .sn-top-menu { width:285px; padding:9px; }
+        .sn-top-menu[hidden],.sn-search-results[hidden] { display:none !important; }
+        .sn-top-menu>strong { display:block; padding:8px 9px 10px; font-size:12px; }
+        .sn-quick-menu { width:270px; }
+        .sn-notification-menu { width:310px; }
+        .sn-menu-heading { display:flex; justify-content:space-between; align-items:center; padding:8px 9px 12px; border-bottom:1px solid #edf1f5; }
+        .sn-menu-heading strong { font-size:13px; }
+        .sn-menu-heading span { font-size:10px; color:#8b98a8; }
+        .sn-notification-empty { min-height:145px; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:7px; text-align:center; padding:20px; color:#8795a6; }
+        .sn-notification-empty i { font-size:24px; color:#9aabba; }
+        .sn-notification-empty strong { color:#40566e; font-size:12px; }
+        .sn-notification-empty span { font-size:10px; line-height:1.5; }
+        .sn-notification-dot { position:absolute; width:7px; height:7px; border-radius:50%; background:#e35d6a; top:7px; right:7px; border:1px solid #fff; }
+        .sn-profile-trigger { display:flex; align-items:center; gap:8px; border:0; background:transparent; cursor:pointer; color:#40566e; padding:2px 4px; }
+        .sn-profile-trigger-name { max-width:115px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; font-weight:650; }
+        .sn-profile-trigger>i { font-size:9px; color:#8795a6; }
+        .sn-profile-menu { width:235px; }
+        .sn-profile-summary { padding:9px 10px 13px; display:flex; flex-direction:column; gap:5px; border-bottom:1px solid #edf1f5; }
+        .sn-profile-summary strong { font-size:12px; color:#253d55; }
+        .sn-profile-summary span { font-size:10px; color:#8492a3; overflow-wrap:anywhere; }
+        .sn-logout-action { display:flex; align-items:center; gap:9px; width:100%; padding:11px 10px; margin-top:5px; border:0; border-radius:7px; background:transparent; color:#bd3d48; cursor:pointer; text-align:left; font-size:11px; }
+        .sn-logout-action:hover { background:#fff1f2; }
+        body.sn-dark { background:#111c2b; color:#e5edf7; }
+        body.sn-dark .main,body.sn-dark .page { background:#111c2b; }
+        body.sn-dark .topbar,body.sn-dark .panel,body.sn-dark .sn-top-menu,body.sn-dark .sn-search-results { background:#1b2a3d; color:#e5edf7; border-color:#304258; }
+        body.sn-dark .search,body.sn-dark .top-button,body.sn-dark .top-select { background:#23354b; color:#e5edf7; border-color:#3a4d64; }
+        body.sn-dark .sn-search-results a,body.sn-dark .sn-quick-link,body.sn-dark .sn-profile-trigger { color:#dbe7f4; }
+        body.sn-dark .sn-search-results a:hover,body.sn-dark .sn-quick-link:hover { background:#2a4059; }
+        body.sn-dark .sn-profile-summary strong,body.sn-dark .sn-notification-empty strong { color:#e5edf7; }
+        body.sn-dark .sn-menu-heading,body.sn-dark .sn-profile-summary { border-color:#34485f; }
+        @media(max-width:800px) {
+            .sn-search-wrap { width:min(300px,48%); }
+            .sn-context-label,.sn-profile-trigger-name,.sn-profile-trigger>i { display:none; }
+            .sn-top-menu { right:-5px; }
+        }
+        @media(max-width:480px) {
+            .sn-search-wrap { width:42%; }
+            .sn-search-wrap kbd { display:none; }
+            .sn-search-wrap .search { padding-left:32px; }
+            .sn-profile-trigger { padding:0; }
+        }
     </style>
 
     <script>
@@ -1399,6 +1499,119 @@
                 }, 4500);
             });
         });
+    </script>
+
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const search = document.getElementById('snGlobalSearch');
+        const results = document.getElementById('snSearchResults');
+        const quickBtn = document.getElementById('snQuickBtn');
+        const quickMenu = document.getElementById('snQuickMenu');
+        const notificationBtn = document.getElementById('snNotificationBtn');
+        const notificationMenu = document.getElementById('snNotificationMenu');
+        const profileBtn = document.getElementById('snProfileBtn');
+        const profileMenu = document.getElementById('snProfileMenu');
+        const themeBtn = document.getElementById('snThemeBtn');
+
+        // Search only links already rendered in the role-filtered sidebar.
+        const pageLinks = Array.from(document.querySelectorAll('.sidebar a[href], .sidebar-navigation a[href], .sidebar-nav a[href]'))
+            .filter(link => link.href && !link.href.endsWith('#'))
+            .filter((link, index, list) => list.findIndex(item => item.href === link.href) === index)
+            .map(link => ({ href: link.href, label: (link.innerText || link.textContent || '').trim().replace(/\s+/g, ' ') }))
+            .filter(item => item.label.length > 1);
+
+        function renderSearch(query) {
+            const q = query.trim().toLowerCase();
+            if (!q) { results.hidden = true; search.setAttribute('aria-expanded', 'false'); return; }
+            const matches = pageLinks.filter(item => item.label.toLowerCase().includes(q)).slice(0, 8);
+            results.innerHTML = '';
+            if (!matches.length) {
+                results.innerHTML = '<div class="sn-search-empty">No matching pages found in your available menu.</div>';
+            } else {
+                matches.forEach(item => {
+                    const a = document.createElement('a');
+                    a.href = item.href;
+                    const icon = document.createElement('i');
+                    icon.className = 'fa-solid fa-arrow-up-right-from-square';
+                    const label = document.createElement('span');
+                    label.textContent = item.label;
+                    a.append(icon, label);
+                    results.appendChild(a);
+                });
+            }
+            results.hidden = false;
+            search.setAttribute('aria-expanded', 'true');
+        }
+        search?.addEventListener('input', () => renderSearch(search.value));
+        search?.addEventListener('focus', () => { if (search.value.trim()) renderSearch(search.value); });
+        search?.addEventListener('keydown', e => {
+            if (e.key === 'Escape') { results.hidden = true; search.blur(); }
+            if (e.key === 'Enter') {
+                const first = results.querySelector('a');
+                if (first) window.location.href = first.href;
+            }
+        });
+        document.addEventListener('keydown', e => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault(); search?.focus();
+            }
+        });
+
+        // Quick actions inherit the current user's sidebar permissions.
+        const quickLinks = document.getElementById('snQuickLinks');
+        pageLinks.slice(0, 6).forEach(item => {
+            const a = document.createElement('a');
+            a.className = 'sn-quick-link';
+            a.href = item.href;
+            const icon = document.createElement('i');
+            icon.className = 'fa-solid fa-bolt';
+            const label = document.createElement('span');
+            label.textContent = item.label;
+            a.append(icon, label);
+            quickLinks?.appendChild(a);
+        });
+        if (quickLinks && !quickLinks.children.length) quickLinks.innerHTML = '<span class="sn-menu-empty">No shortcuts available.</span>';
+
+        const dropdowns = [
+            [quickBtn, quickMenu],
+            [notificationBtn, notificationMenu],
+            [profileBtn, profileMenu]
+        ];
+        function closeMenus(except) {
+            dropdowns.forEach(([button, menu]) => {
+                if (menu !== except) { menu.hidden = true; button?.setAttribute('aria-expanded', 'false'); }
+            });
+        }
+        dropdowns.forEach(([button, menu]) => button?.addEventListener('click', e => {
+            e.stopPropagation();
+            const willOpen = menu.hidden;
+            closeMenus(menu);
+            menu.hidden = !willOpen;
+            button.setAttribute('aria-expanded', String(willOpen));
+        }));
+        document.addEventListener('click', e => {
+            if (!e.target.closest('.sn-top-dropdown') && !e.target.closest('.sn-profile-trigger')) closeMenus(null);
+            if (!e.target.closest('.sn-search-wrap')) results.hidden = true;
+        });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenus(null); });
+
+        // Theme preference is saved in this browser.
+        const savedTheme = localStorage.getItem('schoolnexa-theme');
+        if (savedTheme === 'dark') document.body.classList.add('sn-dark');
+        function updateThemeIcon() {
+            if (!themeBtn) return;
+            themeBtn.innerHTML = document.body.classList.contains('sn-dark')
+                ? '<i class="fa-regular fa-sun"></i>'
+                : '<i class="fa-regular fa-moon"></i>';
+        }
+        updateThemeIcon();
+        themeBtn?.addEventListener('click', function () {
+            document.body.classList.toggle('sn-dark');
+            localStorage.setItem('schoolnexa-theme', document.body.classList.contains('sn-dark') ? 'dark' : 'light');
+            updateThemeIcon();
+        });
+    });
     </script>
 
 </body>

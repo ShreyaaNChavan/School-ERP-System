@@ -148,7 +148,8 @@ class AttendanceController extends Controller
             ->when(!$sectionId && $classId, function ($q) use ($sections) {
                 $q->whereIn('section_id', $sections->pluck('id'));
             })
-            ->when($academicYearId, fn($q) => $q->where('academic_year_id', $q))
+            //->when($academicYearId, fn($q) => $q->where('academic_year_id', $q))
+            ->when($academicYearId, fn($query) => $query->where('academic_year_id', $academicYearId))
             ->when($subjectId, fn($q) => $q->where('subject_id', $subjectId))
             ->get();
 

@@ -326,7 +326,7 @@
         </div>
     </div>
     <div class="sd-welcome-right">
-        @if($url = $routeFor('dashboard'))<a href="{{ $url }}" class="sd-btn">Dashboard</a>@endif
+        <!-- @if($url = $routeFor('dashboard'))<a href="{{ $url }}" class="sd-btn">Dashboard</a>@endif -->
         {!! $tile('hero', 'lg') !!}
         <div class="sd-date">
             {{ now()->format('l, d M Y') }}

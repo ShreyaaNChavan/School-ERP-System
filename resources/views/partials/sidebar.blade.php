@@ -22,7 +22,28 @@
         ->all();
 
     $can = fn(string $permission) => in_array($permission, $permissionCodes, true);
-    $hasRole = fn(string $role) => $roleCodes->contains($role);
+
+    // Match role codes as well as normalized role names.
+    $normalizedRoleNames = $assignedRoles->map(
+        fn($name) => strtoupper(str_replace([' ', '-'], '_', trim($name)))
+    );
+
+    $hasRole = function (string $role) use ($roleCodes, $normalizedRoleNames) {
+        $aliases = [
+            'ACCOUNTANT' => ['ACCOUNTANT', 'ACCOUNTS'],
+            'HR_MANAGER' => ['HR_MANAGER', 'HR'],
+            'TRANSPORT_MANAGER' => ['TRANSPORT_MANAGER', 'TRANSPORT'],
+            'HOSTEL_WARDEN' => ['HOSTEL_WARDEN', 'WARDEN'],
+            'LIBRARIAN' => ['LIBRARIAN', 'LIBRARY'],
+        ];
+
+        foreach ($aliases[$role] ?? [$role] as $candidate) {
+            if ($roleCodes->contains($candidate) || $normalizedRoleNames->contains($candidate)) {
+                return true;
+            }
+        }
+        return false;
+    };
 
     /*
     |--------------------------------------------------------------------------
@@ -117,6 +138,45 @@
 
     /*
     |--------------------------------------------------------------------------
+    | Teacher menu
+    |--------------------------------------------------------------------------
+    | Teachers use dedicated self-service routes. These links expose only the
+    | authenticated teacher's own profile, attendance, payroll and messages.
+    | Marks-entry access must still be restricted to assigned exam subjects
+    | inside the controller.
+    */
+
+    $teacherMenu = [
+        'Platform' => [
+            ['Dashboard', 'grid', 'dashboard', ['dashboard', 'dashboard.*']],
+        ],
+
+        'Academics' => [
+            // Existing teacher academic tools remain available.
+            ['Timetable Management', 'calendar', 'timetables.index', ['timetables.*']],
+            // Student/class attendance is separate from the teacher's own attendance.
+            ['Student Attendance', 'calendar-check', 'attendance.index', ['attendance.*']],
+            ['Homework', 'file', 'homework.index', ['homework.*']],
+            ['Assignments', 'clipboard', 'assignments.index', ['assignments.*']],
+            ['Study Materials', 'book', 'study-materials.index', ['study-materials.*']],
+            // Dedicated teacher marks-entry route limits access to assigned exam subjects.
+            ['Marks Entry', 'clipboard', 'teacher.marks.index', ['teacher.marks.*']],
+            ['Report Cards', 'file-text', 'report-cards.index', ['report-cards.*']],
+        ],
+
+        'My Workspace' => [
+            ['My Profile', 'user', 'teacher.profile.show', ['teacher.profile.*']],
+            ['My Attendance', 'calendar', 'teacher.attendance.index', ['teacher.attendance.*']],
+            ['My Payroll', 'wallet', 'teacher.payroll.index', ['teacher.payroll.*']],
+        ],
+
+        'Communication & Support' => [
+            ['Messages', 'message-circle', 'teacher.messages.index', ['teacher.messages.*']],
+        ],
+    ];
+
+    /*
+    |--------------------------------------------------------------------------
     | Other role menus
     |--------------------------------------------------------------------------
     */
@@ -176,9 +236,79 @@
         ],
     ];
 
+    // Focused workspaces for the five operational staff accounts.
+    $staffRoleMenus = [
+        'ACCOUNTANT' => [
+            'Platform' => [
+                ['Dashboard', 'grid', 'dashboard', ['dashboard', 'dashboard.*']],
+            ],
+            'Finance & Accounts' => [
+                ['Finance & Fees', 'wallet', 'fees.dashboard', ['fees.*']],
+                ['Reports & Analytics', 'chart', 'caspa.reports.home', ['caspa.reports.*']],
+            ],
+        ],
+        'HR_MANAGER' => [
+            'Platform' => [
+                ['Dashboard', 'grid', 'dashboard', ['dashboard', 'dashboard.*']],
+            ],
+            'HR & Payroll' => [
+                ['HR Dashboard', 'briefcase', 'hr.dashboard', ['hr.dashboard']],
+            ],
+            'Reports & Governance' => [
+                ['Reports & Analytics', 'chart', 'caspa.reports.home', ['caspa.reports.*']],
+            ],
+        ],
+        'TRANSPORT_MANAGER' => [
+            'Platform' => [
+                ['Dashboard', 'grid', 'dashboard', ['dashboard', 'dashboard.*']],
+            ],
+            'Transport Operations' => [
+                ['Transport Dashboard', 'bus', 'transport.dashboard', ['transport.dashboard']],
+            ],
+        ],
+        'HOSTEL_WARDEN' => [
+            'Platform' => [
+                ['Dashboard', 'grid', 'dashboard', ['dashboard', 'dashboard.*']],
+            ],
+            'Hostel Operations' => [
+                ['Hostel Dashboard', 'home', 'hostel.dashboard', ['hostel.dashboard']],
+            ],
+        ],
+        'LIBRARIAN' => [
+            'Platform' => [
+                ['Dashboard', 'grid', 'dashboard', ['dashboard', 'dashboard.*']],
+            ],
+            'Library Operations' => [
+                ['Library Dashboard', 'book', 'library.dashboard', ['library.dashboard']],
+            ],
+        ],
+    ];
+
     $visibleGroups = [];
 
-    if ($hasRole('STUDENT')) {
+    if ($hasRole('TEACHER')) {
+        // Teacher navigation is explicit and uses dedicated self-service routes.
+        foreach ($teacherMenu as $groupName => $items) {
+            $visibleItems = [];
+
+            foreach ($items as [$label, $icon, $routeName, $patterns]) {
+                if (!Route::has($routeName)) {
+                    continue;
+                }
+
+                $visibleItems[] = [
+                    'label' => $label,
+                    'icon' => $icon,
+                    'route' => $routeName,
+                    'active' => request()->routeIs(...$patterns),
+                ];
+            }
+
+            if (!empty($visibleItems)) {
+                $visibleGroups[$groupName] = $visibleItems;
+            }
+        }
+    } elseif ($hasRole('STUDENT')) {
         // Student sees only the explicitly approved student menu.
         foreach ($studentMenu as $groupName => $items) {
             $visibleItems = [];
@@ -250,26 +380,57 @@
             }
         }
     } else {
-        // All other roles retain permission-based navigation.
-        foreach ($menuGroups as $groupName => $items) {
-            $visibleItems = [];
+        $selectedStaffMenu = null;
 
-            foreach ($items as [$label, $icon, $routeName, $permission, $patterns]) {
-                if (!$can($permission) || !Route::has($routeName)) {
-                    continue;
+        foreach (['ACCOUNTANT', 'HR_MANAGER', 'TRANSPORT_MANAGER', 'HOSTEL_WARDEN', 'LIBRARIAN'] as $staffRole) {
+            if ($hasRole($staffRole)) {
+                $selectedStaffMenu = $staffRoleMenus[$staffRole];
+                break;
+            }
+        }
+
+        if ($selectedStaffMenu !== null) {
+            foreach ($selectedStaffMenu as $groupName => $items) {
+                $visibleItems = [];
+
+                foreach ($items as [$label, $icon, $routeName, $patterns]) {
+                    if (!Route::has($routeName)) {
+                        continue;
+                    }
+
+                    $visibleItems[] = [
+                        'label' => $label,
+                        'icon' => $icon,
+                        'route' => $routeName,
+                        'active' => request()->routeIs(...$patterns),
+                    ];
                 }
 
-
-                $visibleItems[] = [
-                    'label' => $label,
-                    'icon' => $icon,
-                    'route' => $routeName,
-                    'active' => request()->routeIs(...$patterns),
-                ];
+                if (!empty($visibleItems)) {
+                    $visibleGroups[$groupName] = $visibleItems;
+                }
             }
+        } else {
+            // All remaining roles retain the full permission-driven navigation.
+            foreach ($menuGroups as $groupName => $items) {
+                $visibleItems = [];
 
-            if (!empty($visibleItems)) {
-                $visibleGroups[$groupName] = $visibleItems;
+                foreach ($items as [$label, $icon, $routeName, $permission, $patterns]) {
+                    if (!$can($permission) || !Route::has($routeName)) {
+                        continue;
+                    }
+
+                    $visibleItems[] = [
+                        'label' => $label,
+                        'icon' => $icon,
+                        'route' => $routeName,
+                        'active' => request()->routeIs(...$patterns),
+                    ];
+                }
+
+                if (!empty($visibleItems)) {
+                    $visibleGroups[$groupName] = $visibleItems;
+                }
             }
         }
     }
@@ -277,11 +438,14 @@
     /* One distinct line icon per menu option (falls back to <x-icon> for any new item) */
     $svgIcons = [
         'Dashboard' => '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+        'My Profile' => '<circle cx="12" cy="8" r="3.5"/><path d="M4.5 21v-1.5A5.5 5.5 0 0 1 10 14h4a5.5 5.5 0 0 1 5.5 5.5V21"/>',
+        'My Payroll' => '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3 10h18M7 15h3M16 15h1"/>',
         'My Children' => '<circle cx="9" cy="8" r="3.2"/><path d="M3 20v-1.2A4.8 4.8 0 0 1 7.8 14h2.4A4.8 4.8 0 0 1 15 18.8V20"/><circle cx="17.5" cy="9" r="2.4"/><path d="M17 14.2a4 4 0 0 1 4 3.8V20"/>',
         'Curriculum & Syllabus' => '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5Z"/><path d="M4 21.5V5.5M9 8h7M9 12h7"/>',
         'Lesson Planning' => '<path d="M5 3h11a2 2 0 0 1 2 2v4"/><path d="M5 3v16a2 2 0 0 0 2 2h4"/><path d="M9 8h5M9 12h3"/><path d="m20.5 13-6 6-2 .5.5-2 6-6Z"/>',
         'Timetable Management' => '<rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M8 2v4M16 2v4M3 10h18"/><circle cx="15.5" cy="16" r="3"/><path d="M15.5 14.5V16l1 .8"/>',
         'My Attendance' => '<rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M8 2v4M16 2v4M3 10h18M9 15.5l2 2 4-4"/>',
+        'Student Attendance' => '<rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M8 2v4M16 2v4M3 10h18M8 15h2M14 15h2M8 18h2"/>',
         'Attendance' => '<rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M8 2v4M16 2v4M3 10h18M9 15.5l2 2 4-4"/>',
         'Homework' => '<path d="m4 20 1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19Z"/><path d="m14 7 3 3M4 20h6"/>',
         'Assignments' => '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/>',
@@ -559,7 +723,12 @@
         {{-- Popup menu: My Profile / Logout --}}
         <div class="sbx-menu" id="sbxMenu" role="menu" hidden>
 
-            @if($hasRole('PARENT') && Route::has('parent.profile.edit'))
+            @if($hasRole('TEACHER') && Route::has('teacher.profile.edit'))
+                <a href="{{ route('teacher.profile.edit') }}" class="sbx-item" role="menuitem">
+                    <x-icon name="user" size="17" />
+                    <span>My Profile</span>
+                </a>
+            @elseif($hasRole('PARENT') && Route::has('parent.profile.edit'))
                 <a href="{{ route('parent.profile.edit') }}" class="sbx-item" role="menuitem">
                     <x-icon name="user" size="17" />
                     <span>My Profile</span>
