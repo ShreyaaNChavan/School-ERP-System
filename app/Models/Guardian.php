@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Guardian extends Model
@@ -18,6 +19,13 @@ class Guardian extends Model
         'occupation',
     ];
 
+    // Guardian's login account.
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    // Students linked to this guardian.
     public function students(): BelongsToMany
     {
         return $this->belongsToMany(

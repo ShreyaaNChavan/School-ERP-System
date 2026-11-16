@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -73,6 +74,16 @@ class StudentProfile extends Model
     public function emergencyContacts(): HasMany
     {
         return $this->hasMany(EmergencyContact::class, 'student_id');
+    }
+
+    /**
+     * Scope students belonging to a particular parent's login account.
+     */
+    public function scopeForGuardianUser(Builder $query, int $userId): Builder
+    {
+        return $query->whereHas('guardians', function ($guardianQuery) use ($userId) {
+            $guardianQuery->where('guardians.user_id', $userId);
+        });
     }
 
     public function getFullNameAttribute(): string

@@ -34,7 +34,18 @@ use App\Http\Controllers\StudentSupportController;
 use App\Http\Controllers\CaspaIntelligenceController;
 use App\Http\Controllers\ReportsAnalyticsController;
 use App\Http\Controllers\ApprovalCenterController;
-
+use App\Http\Controllers\Parent\AttendanceController as ParentAttendanceController;
+use App\Http\Controllers\Parent\HomeworkController as ParentHomeworkController;
+use App\Http\Controllers\Parent\AssignmentController as ParentAssignmentController;
+use App\Http\Controllers\Parent\TransportController as ParentTransportController;
+use App\Http\Controllers\Parent\LibraryController as ParentLibraryController;
+use App\Http\Controllers\Parent\HostelController as ParentHostelController;
+use App\Http\Controllers\Parent\FeeController as ParentFeeController;
+use App\Http\Controllers\Parent\ChildrenController as ParentChildrenController;
+use App\Http\Controllers\Parent\AnnouncementController as ParentAnnouncementController;
+use App\Http\Controllers\Parent\EventController as ParentEventController;
+use App\Http\Controllers\Parent\PtmController as ParentPtmController;
+use App\Http\Controllers\Parent\MessageController as ParentMessageController;
 
 // Home
 Route::get('/', function () {
@@ -1244,3 +1255,116 @@ Route::middleware(['auth', 'permission:DASHBOARD.VIEW'])->group(function () {
     Route::get('/dashboard/parent', [\App\Http\Controllers\DashboardController::class, 'parent'])
         ->name('dashboard.parent');
 });
+
+
+use App\Http\Controllers\Student\StudentTransportController;
+use App\Http\Controllers\Student\StudentHostelController;
+use App\Http\Controllers\Student\StudentLibraryController;
+
+Route::middleware(['auth'])->group(function () {
+
+    Route::get('/my-transport', [StudentTransportController::class, 'index'])
+        ->name('student.transport');
+
+    Route::get('/my-hostel', [StudentHostelController::class, 'index'])
+        ->name('student.hostel');
+
+    Route::get('/my-library', [StudentLibraryController::class, 'index'])
+        ->name('student.library');
+
+});
+
+
+
+// ======================================================
+// PARENT PORTAL - CHILD SERVICES
+// Dedicated read-only routes for linked children
+// ======================================================
+
+Route::middleware(['auth'])
+    ->prefix('parent')
+    ->name('parent.')
+    ->group(function () {
+
+        Route::get('/attendance', [ParentAttendanceController::class, 'index'])
+            ->name('attendance.index');
+
+        Route::get('/homework', [ParentHomeworkController::class, 'index'])
+            ->name('homework.index');
+
+        Route::get('/assignments', [ParentAssignmentController::class, 'index'])
+            ->name('assignments.index');
+
+        Route::get('/transport', [ParentTransportController::class, 'index'])
+            ->name('transport.index');
+
+        Route::get('/library', [ParentLibraryController::class, 'index'])
+            ->name('library.index');
+
+        Route::get('/hostel', [ParentHostelController::class, 'index'])
+            ->name('hostel.index');
+    });
+
+Route::get('/fees', [ParentFeeController::class, 'index'])
+    ->name('fees.index');
+
+Route::get('/fees/{invoice}', [ParentFeeController::class, 'show'])
+    ->whereNumber('invoice')
+    ->name('fees.show');
+Route::middleware(['auth'])
+    ->prefix('parent')
+    ->name('parent.')
+    ->group(function () {
+
+        // Children
+        Route::get('/children', [ParentChildrenController::class, 'index'])
+            ->name('children.index');
+
+        // Fees
+        Route::get('/fees', [ParentFeeController::class, 'index'])
+            ->name('fees.index');
+
+        Route::get('/fees/{invoice}', [ParentFeeController::class, 'show'])
+            ->whereNumber('invoice')
+            ->name('fees.show');
+
+        // School announcements
+        Route::get('/announcements', [ParentAnnouncementController::class, 'index'])
+            ->name('announcements.index');
+
+        Route::get('/announcements/{id}', [ParentAnnouncementController::class, 'show'])
+            ->whereNumber('id')
+            ->name('announcements.show');
+
+        // Events
+        Route::get('/events', [ParentEventController::class, 'index'])
+            ->name('events.index');
+
+        // Parent–Teacher Meetings
+        Route::get('/ptm', [ParentPtmController::class, 'index'])
+            ->name('ptm.index');
+
+        Route::get('/ptm/create', [ParentPtmController::class, 'create'])
+            ->name('ptm.create');
+
+        Route::post('/ptm', [ParentPtmController::class, 'store'])
+            ->name('ptm.store');
+
+        // CASPA Chat
+        Route::get('/messages', [ParentMessageController::class, 'index'])
+            ->name('messages.index');
+
+        Route::get('/messages/compose', [ParentMessageController::class, 'create'])
+            ->name('messages.create');
+
+        Route::post('/messages', [ParentMessageController::class, 'store'])
+            ->name('messages.store');
+
+        Route::get('/messages/{id}', [ParentMessageController::class, 'show'])
+            ->whereNumber('id')
+            ->name('messages.show');
+
+        Route::post('/messages/{id}/reply', [ParentMessageController::class, 'reply'])
+            ->whereNumber('id')
+            ->name('messages.reply');
+    });

@@ -9,8 +9,117 @@ use Illuminate\Validation\ValidationException;
 
 class ReportCardController extends Controller
 {
+    /**
+     * Check whether the authenticated user has the STUDENT role.
+     */
+    private function isStudent(): bool
+    {
+        return auth()->user()
+            ->roleAssignments()
+            ->where('is_active', true)
+            ->whereHas('role', function ($query) {
+                $query->where('code', 'STUDENT')
+                    ->where('is_active', true);
+            })
+            ->exists();
+    }
+
+    /**
+     * Get the authenticated student's profile.
+     */
+    private function getAuthenticatedStudent()
+    {
+        $student = auth()->user()->studentProfile()->first();
+
+        abort_unless($student, 403, 'No student profile is linked to your account.');
+
+        return $student;
+    }
+
+    /**
+     * Report card directory.
+     *
+     * Students see only their own published report cards.
+     * Administrative users retain the existing report card directory.
+     */
     public function index(Request $request)
     {
+        /*
+        |--------------------------------------------------------------------------
+        | Student report cards
+        |--------------------------------------------------------------------------
+        */
+
+        if ($this->isStudent()) {
+            $student = $this->getAuthenticatedStudent();
+
+            $reportCards = DB::table('report_cards as rc')
+                ->join('examinations as e', 'e.id', '=', 'rc.examination_id')
+                ->where('rc.student_id', $student->id)
+                ->whereNotNull('rc.published_at')
+                ->select(
+                    'rc.id',
+                    'rc.student_id',
+                    'rc.examination_id',
+                    'rc.total_marks',
+                    'rc.percentage',
+                    'rc.overall_grade',
+                    'rc.rank',
+                    'rc.published_at',
+                    'e.name as examination_name',
+                    'e.academic_year_id',
+                    'e.start_date',
+                    'e.end_date'
+                )
+                ->when($request->filled('examination_id'), function ($query) use ($request) {
+                    $query->where('rc.examination_id', $request->examination_id);
+                })
+                ->orderByDesc('rc.published_at')
+                ->paginate(10)
+                ->withQueryString();
+
+            $stats = [
+                'total' => DB::table('report_cards')
+                    ->where('student_id', $student->id)
+                    ->whereNotNull('published_at')
+                    ->count(),
+
+                'average' => round(
+                    DB::table('report_cards')
+                        ->where('student_id', $student->id)
+                        ->whereNotNull('published_at')
+                        ->avg('percentage') ?? 0,
+                    2
+                ),
+
+                'highest' => DB::table('report_cards')
+                    ->where('student_id', $student->id)
+                    ->whereNotNull('published_at')
+                    ->max('percentage') ?? 0,
+            ];
+
+            $examinations = DB::table('report_cards as rc')
+                ->join('examinations as e', 'e.id', '=', 'rc.examination_id')
+                ->where('rc.student_id', $student->id)
+                ->whereNotNull('rc.published_at')
+                ->select('e.id', 'e.name')
+                ->orderByDesc('e.start_date')
+                ->get();
+
+            return view('student.report-cards.index', compact(
+                'student',
+                'reportCards',
+                'stats',
+                'examinations'
+            ));
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Administrative report card directory
+        |--------------------------------------------------------------------------
+        */
+
         $query = DB::table('report_cards as rc')
             ->join('student_profiles as sp', 'sp.id', '=', 'rc.student_id')
             ->join('examinations as e', 'e.id', '=', 'rc.examination_id')
@@ -20,6 +129,7 @@ class ReportCardController extends Controller
             })
             ->leftJoin('school_classes as sc', 'sc.id', '=', 'se.school_class_id')
             ->leftJoin('sections as sec', 'sec.id', '=', 'se.section_id')
+            ->whereNull('sp.deleted_at')
             ->select(
                 'rc.*',
                 'sp.first_name',
@@ -77,10 +187,15 @@ class ReportCardController extends Controller
 
         $stats = [
             'total' => DB::table('report_cards')->count(),
+
             'published' => DB::table('report_cards')
-                ->whereNotNull('published_at')->count(),
+                ->whereNotNull('published_at')
+                ->count(),
+
             'pending' => DB::table('report_cards')
-                ->whereNull('published_at')->count(),
+                ->whereNull('published_at')
+                ->count(),
+
             'average' => round(
                 DB::table('report_cards')->avg('percentage') ?? 0,
                 2
@@ -96,8 +211,13 @@ class ReportCardController extends Controller
         ));
     }
 
+    /**
+     * Generate report cards for a class and section.
+     */
     public function generate(Request $request)
     {
+        abort_if($this->isStudent(), 403);
+
         $validated = $request->validate([
             'examination_id' => ['required', 'exists:examinations,id'],
             'school_class_id' => ['required', 'exists:school_classes,id'],
@@ -136,6 +256,7 @@ class ReportCardController extends Controller
             ->where('se.section_id', $validated['section_id'])
             ->where('se.status', 'active')
             ->where('sp.status', 'active')
+            ->whereNull('sp.deleted_at')
             ->select('sp.id')
             ->get();
 
@@ -226,8 +347,10 @@ class ReportCardController extends Controller
             $previousPercentage = null;
 
             foreach ($rankCandidates as $index => $candidate) {
-                if ($previousPercentage === null ||
-                    $candidate['percentage'] < $previousPercentage) {
+                if (
+                    $previousPercentage === null ||
+                    $candidate['percentage'] < $previousPercentage
+                ) {
                     $rank = $index + 1;
                 }
 
@@ -254,8 +377,27 @@ class ReportCardController extends Controller
             );
     }
 
+    /**
+     * Display a report card.
+     *
+     * Students can only open their own published report cards.
+     */
     public function show(ReportCard $reportCard)
     {
+        if ($this->isStudent()) {
+            $student = $this->getAuthenticatedStudent();
+
+            abort_unless(
+                (int) $reportCard->student_id === (int) $student->id,
+                404
+            );
+
+            abort_unless(
+                $reportCard->published_at !== null,
+                404
+            );
+        }
+
         $reportCard->load(['student', 'examination']);
 
         $student = $reportCard->student;
@@ -353,8 +495,13 @@ class ReportCardController extends Controller
         ));
     }
 
+    /**
+     * Publish an individual report card.
+     */
     public function publish(Request $request, ReportCard $reportCard)
     {
+        abort_if($this->isStudent(), 403);
+
         if ($reportCard->published_at) {
             return back()->with('error', 'This report card has already been published.');
         }
@@ -366,8 +513,13 @@ class ReportCardController extends Controller
         return back()->with('success', 'Report card published successfully.');
     }
 
+    /**
+     * Publish report cards for an entire section.
+     */
     public function publishSection(Request $request)
     {
+        abort_if($this->isStudent(), 403);
+
         $validated = $request->validate([
             'examination_id' => ['required', 'exists:examinations,id'],
             'school_class_id' => ['required', 'exists:school_classes,id'],
@@ -412,9 +564,15 @@ class ReportCardController extends Controller
             ->whereNull('published_at')
             ->update(['published_at' => now()]);
 
-        return back()->with('success', $cards->count() . ' report cards published successfully.');
+        return back()->with(
+            'success',
+            $cards->count() . ' report cards published successfully.'
+        );
     }
 
+    /**
+     * Calculate grade from percentage.
+     */
     private function gradeFromPercentage(float $percentage): string
     {
         return match (true) {
@@ -429,13 +587,21 @@ class ReportCardController extends Controller
         };
     }
 
+    /**
+     * Calculate student attendance percentage.
+     */
     private function attendancePercentage(
         int $studentId,
         int $sectionId,
         int $academicYearId
     ): float {
         $records = DB::table('student_attendance as sa')
-            ->join('attendance_sessions as ats', 'ats.id', '=', 'sa.attendance_session_id')
+            ->join(
+                'attendance_sessions as ats',
+                'ats.id',
+                '=',
+                'sa.attendance_session_id'
+            )
             ->where('sa.student_id', $studentId)
             ->where('ats.section_id', $sectionId)
             ->where('ats.academic_year_id', $academicYearId)

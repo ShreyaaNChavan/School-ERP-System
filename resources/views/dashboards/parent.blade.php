@@ -358,6 +358,18 @@
 .pd-donut-content small{ display:block; font-size:10px; color:var(--green); }
 
 .pd-chart-wrap{ height:210px; position:relative; }
+.pd-trend-chart{height:210px;display:flex;gap:9px;padding:10px 2px 0;min-width:0}
+.pd-trend-ylabels{width:34px;flex:0 0 34px;display:flex;flex-direction:column;justify-content:space-between;padding:0 0 25px;color:#94A3B8;font-size:9px;text-align:right}
+.pd-trend-plot{position:relative;flex:1;min-width:0;height:100%;padding-bottom:25px}
+.pd-trend-gridline{position:absolute;left:0;right:0;border-top:1px dashed #E2E8F0;pointer-events:none}
+.pd-trend-gridline.g100{top:0}.pd-trend-gridline.g75{top:18.75%}.pd-trend-gridline.g50{top:37.5%}.pd-trend-gridline.g25{top:56.25%}.pd-trend-gridline.g0{top:75%;border-top-style:solid}
+.pd-trend-columns{position:absolute;inset:0 0 0;display:flex;align-items:stretch;justify-content:space-around;gap:8px}
+.pd-trend-column{position:relative;z-index:1;flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
+.pd-trend-value{height:16px;font-size:9px;font-weight:700;color:#64748B;white-space:nowrap}
+.pd-trend-bar-track{height:calc(100% - 41px);width:min(26px,65%);display:flex;align-items:flex-end;justify-content:center}
+.pd-trend-bar{width:100%;min-height:2px;border-radius:5px 5px 2px 2px;background:linear-gradient(180deg,#3B82F6,#176B87);box-shadow:0 2px 5px rgba(23,107,135,.14)}
+.pd-trend-label{height:25px;padding-top:7px;font-size:9px;color:#64748B;white-space:nowrap}
+@media(max-width:480px){.pd-trend-columns{gap:3px}.pd-trend-label{font-size:8px}.pd-trend-value{font-size:8px}}
 .pd-achievement{ display:grid; grid-template-columns:70px 1fr; gap:10px; padding:11px 0; border-bottom:1px solid #EEF2F6; }
 .pd-achievement:last-child{ border-bottom:0; }
 .pd-achievement-year{ font-size:12px; color:var(--muted); }
@@ -414,43 +426,67 @@
         </div>
     </section>
 
-    @if($selectedChild)
+    @if(($childData ?? collect())->isNotEmpty())
+        @foreach($childData as $childRecord)
+            @php
+                $selectedChild = $childRecord['student'];
+                $childEnrollment = $childRecord['enrollment'];
+                $childAttendance = $childRecord['attendance'];
+                $childFees = $childRecord['fees'];
+                $childAcademic = $childRecord['academic'];
+                $childRecentResults = $childRecord['recentResults'];
+                $childAssignments = $childRecord['assignments'];
+                $childAnnouncements = $childRecord['announcements'];
+                $childEvents = $childRecord['events'];
+                $childPayments = $childRecord['payments'];
+                $childAttendanceDays = $childRecord['attendanceDays'];
+                $childUpcomingExams = $childRecord['upcomingExams'];
+                $childDocuments = $childRecord['documents'];
+                $childTransport = $childRecord['transport'];
+                $childBorrowedBooks = $childRecord['borrowedBooks'];
+                $childLibraryStats = $childRecord['libraryStats'];
+                $childAchievements = $childRecord['achievements'];
+                $childAttendanceTrend = $childRecord['attendanceTrend'];
+                $childPerformance = $childRecord['performance'];
+                $fullName = trim(collect([$selectedChild->first_name ?? '', $selectedChild->middle_name ?? '', $selectedChild->last_name ?? ''])->filter()->implode(' '));
+                $initials = strtoupper(substr($selectedChild->first_name ?? 'S', 0, 1).substr($selectedChild->last_name ?? '', 0, 1));
+                $classLabel = trim(($childEnrollment->class_name ?? 'Class not assigned').(!empty($childEnrollment->section_name) ? ' · '.$childEnrollment->section_name : ''));
+                $attendanceValue = $childPerformance['attendance'] ?? null;
+                $marksValue = $childPerformance['marks'] ?? null;
+                $homeworkValue = $childPerformance['homework'] ?? null;
+                $engagementValue = $childPerformance['engagement'] ?? null;
+                $performanceRows = [['Average Attendance',$attendanceValue],['Average Marks',$marksValue],['Homework Completion',$homeworkValue],['Student Engagement',$engagementValue]];
+                $examCollection = collect($childUpcomingExams);
+                $documentCollection = collect($childDocuments);
+                $borrowedCollection = collect($childBorrowedBooks);
+                $achievementCollection = collect($childAchievements);
+                $trendCollection = collect($childAttendanceTrend);
+                $attendanceChartLabels = $trendCollection->map(fn($item) => data_get($item,'label',data_get($item,'week','')))->values();
+                $attendanceChartValues = $trendCollection->map(fn($item) => (float)data_get($item,'percentage',data_get($item,'rate',0)))->values();
+                $transportDetails = is_array($childTransport) ? $childTransport : (is_object($childTransport) ? (array)$childTransport : []);
+                $libraryAvailable = $childLibraryStats['available'] ?? null;
+                $libraryTotal = $childLibraryStats['total'] ?? null;
+                $libraryRate = $childLibraryStats['availability_rate'] ?? null;
+                if ($libraryRate === null && $libraryAvailable !== null && $libraryTotal > 0) $libraryRate = round(($libraryAvailable / $libraryTotal) * 100);
+            @endphp
 
-        {{-- CHILD SELECTOR --}}
-        <section class="pd-childbar">
-            <div class="pd-child-info">
-                <div class="pd-avatar">
-                    @if(!empty($selectedChild->photo_path))
-                        <img src="{{ asset('storage/'.$selectedChild->photo_path) }}" alt="{{ $fullName }}">
-                    @else
-                        {{ $initials }}
-                    @endif
+            {{-- CHILD PROFILE --}}
+            <section class="pd-childbar">
+                <div class="pd-child-info">
+                    <div class="pd-avatar">
+                        @if(!empty($selectedChild->photo_path))
+                            <img src="{{ asset('storage/'.$selectedChild->photo_path) }}" alt="{{ $fullName }}">
+                        @else
+                            {{ $initials }}
+                        @endif
+                    </div>
+                    <div>
+                        <b>{{ $fullName }}</b>
+                        <small>{{ $classLabel }} · Admission No: {{ $selectedChild->admission_number ?: '—' }}</small>
+                    </div>
                 </div>
-                <div>
-                    <b>{{ $fullName }}</b>
-                    <small>
-                        {{ $classLabel }} · Admission No: {{ $selectedChild->admission_number ?: '—' }}
-                    </small>
-                </div>
-            </div>
-
-            @if($children->count() > 1)
-                <form class="pd-selector" method="GET" action="{{ route('dashboard') }}">
-                    <label for="parent-child-select">Viewing child</label>
-                    <select class="pd-select" id="parent-child-select" name="child_id" onchange="this.form.submit()">
-                        @foreach($children as $child)
-                            <option value="{{ $child->id }}" @selected((int)$selectedChild->id === (int)$child->id)>
-                                {{ trim($child->first_name.' '.($child->last_name ?? '')) }}
-                                · {{ $child->admission_number ?: 'No admission no.' }}
-                            </option>
-                        @endforeach
-                    </select>
-                    <noscript><button class="pd-btn" type="submit">Switch</button></noscript>
-                </form>
-            @else
-                <span class="pd-badge green">Your linked child</span>
-            @endif
-        </section>
+                <span class="pd-badge green">Linked to your account</span>
+            </section>
 
         {{-- KPI CARDS --}}
         <section class="pd-kpis">
@@ -586,7 +622,7 @@
         <section class="pd-panel">
             <div class="pd-panel-head">
                 <h2>Quick Access</h2>
-                <span class="pd-muted">Services for your selected child</span>
+                <span class="pd-muted">Services for this child</span>
             </div>
             <div class="pd-shortcuts">
                 @foreach($quickLinks as $link)
@@ -795,7 +831,7 @@
             <div class="pd-panel">
                 <div class="pd-panel-head">
                     <h2>Published Exam Results</h2>
-                    <span class="pd-muted">Selected child only</span>
+                    <span class="pd-muted">This child only</span>
                 </div>
 
                 @if($childRecentResults->isNotEmpty())
@@ -860,8 +896,36 @@
                 </div>
 
                 @if($trendCollection->isNotEmpty())
-                    <div class="pd-chart-wrap">
-                        <canvas id="parentAttendanceChart"></canvas>
+                    <div class="pd-trend-chart" role="img" aria-label="Weekly attendance trend">
+                        <div class="pd-trend-ylabels" aria-hidden="true">
+                            <span>100%</span>
+                            <span>75%</span>
+                            <span>50%</span>
+                            <span>25%</span>
+                            <span>0%</span>
+                        </div>
+                        <div class="pd-trend-plot">
+                            <div class="pd-trend-gridline g100"></div>
+                            <div class="pd-trend-gridline g75"></div>
+                            <div class="pd-trend-gridline g50"></div>
+                            <div class="pd-trend-gridline g25"></div>
+                            <div class="pd-trend-gridline g0"></div>
+                            <div class="pd-trend-columns">
+                                @foreach($trendCollection as $trendItem)
+                                    @php
+                                        $trendLabel = data_get($trendItem, 'label', data_get($trendItem, 'week', ''));
+                                        $trendValue = min(100, max(0, (float) data_get($trendItem, 'percentage', data_get($trendItem, 'rate', 0))));
+                                    @endphp
+                                    <div class="pd-trend-column" title="{{ $trendLabel }}: {{ number_format($trendValue, 1) }}% attendance">
+                                        <div class="pd-trend-value">{{ number_format($trendValue, 0) }}%</div>
+                                        <div class="pd-trend-bar-track">
+                                            <div class="pd-trend-bar" style="height:{{ max(2, $trendValue) }}%"></div>
+                                        </div>
+                                        <span class="pd-trend-label">{{ $trendLabel }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
                     </div>
                 @else
                     <div class="pd-empty">
@@ -989,6 +1053,7 @@
             </div>
         </section>
 
+        @endforeach
     @else
 
         <section class="pd-empty-state">
@@ -1056,68 +1121,5 @@
         });
     })();
 </script>
-
-@if($selectedChild && $trendCollection->isNotEmpty())
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const canvas = document.getElementById('parentAttendanceChart');
-
-            if (!canvas || typeof Chart === 'undefined') {
-                return;
-            }
-
-            const labels = @json($attendanceChartLabels);
-            const values = @json($attendanceChartValues);
-
-            new Chart(canvas, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Attendance',
-                        data: values,
-                        borderColor: '#176B87',
-                        backgroundColor: 'rgba(23,107,135,0.14)',
-                        fill: true,
-                        tension: 0.35,
-                        pointRadius: 3,
-                        pointBackgroundColor: '#176B87',
-                        borderWidth: 2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return context.parsed.y + '% attendance';
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            min: 0,
-                            max: 100,
-                            ticks: {
-                                callback: function(value) { return value + '%'; },
-                                font: { size: 10 }
-                            },
-                            grid: { color: '#EEF2F6' }
-                        },
-                        x: {
-                            ticks: { font: { size: 10 } },
-                            grid: { display: false }
-                        }
-                    }
-                }
-            });
-        });
-    </script>
-@endif
 
 @endsection

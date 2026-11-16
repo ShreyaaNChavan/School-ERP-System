@@ -5,8 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', 'Dashboard') | SchoolNexa</title>
-    <link rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     <style>
@@ -34,6 +33,7 @@
         .app {
             min-height: 100vh;
             display: flex;
+            align-items: flex-start;
         }
 
         .sidebar {
@@ -1166,6 +1166,221 @@
             to {
                 opacity: 0;
                 transform: translateX(25px);
+            }
+        }
+
+
+        .sidebar {
+            position: sticky;
+            top: 0;
+            align-self: flex-start;
+            width: 235px;
+            flex: 0 0 235px;
+            height: 100vh;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 100;
+        }
+
+        @media (max-width: 1200px) {
+            .sidebar {
+                width: 205px;
+                flex-basis: 205px;
+            }
+        }
+
+        @media (max-width: 800px) {
+            .sidebar {
+                width: 64px;
+                flex-basis: 64px;
+            }
+        }
+
+        .sidebar-brand {
+            flex-shrink: 0;
+        }
+
+        .sidebar-navigation {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            overscroll-behavior: contain;
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 transparent;
+        }
+
+        .sidebar-navigation::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .sidebar-navigation::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        .sidebar-profile {
+            flex-shrink: 0;
+            position: relative;
+            background: #fff;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        /* SchoolNexa fixed sidebar + independently scrolling content
+   Append this block at the VERY END of the <style> block in
+   resources/views/layouts/schoolnexa.blade.php. */
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .app {
+            width: 100%;
+            height: 100vh;
+            height: 100dvh;
+            min-height: 0;
+            display: flex;
+            align-items: stretch;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            position: sticky;
+            top: 0;
+            align-self: flex-start;
+            width: 235px;
+            height: 100vh;
+            height: 100dvh;
+            min-height: 0;
+            flex: 0 0 235px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-nav {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-x: hidden;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 transparent;
+            padding-bottom: 10px;
+        }
+
+        .sidebar-nav::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .sidebar-nav::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        .sidebar-nav::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .sidebar-nav-group {
+            flex: 0 0 auto;
+        }
+
+        .side-bottom {
+            flex: 0 0 auto;
+            margin-top: 0;
+            background: #fff;
+            padding-top: 10px;
+        }
+
+        .main {
+            flex: 1 1 auto;
+            width: 0;
+            min-width: 0;
+            height: 100vh;
+            height: 100dvh;
+            min-height: 0;
+            overflow-x: hidden;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            scrollbar-gutter: stable;
+        }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 30;
+        }
+
+        .sidebar-logout {
+            margin: 0;
+        }
+
+        .sidebar-logout button {
+            width: 100%;
+            border: 0;
+            background: transparent;
+            text-align: left;
+            cursor: pointer;
+            font: inherit;
+        }
+
+        .sidebar-empty {
+            padding: 14px 10px;
+            color: #8290a2;
+            font-size: 12px;
+        }
+
+        @media (max-width: 1200px) {
+            .sidebar {
+                width: 205px;
+                flex-basis: 205px;
+            }
+        }
+
+        @media (max-width: 800px) {
+            .sidebar {
+                width: 64px;
+                flex-basis: 64px;
+                padding: 12px 7px;
+            }
+
+            .sidebar-nav {
+                min-width: 0;
+            }
+
+            .sidebar .side-text,
+            .sidebar .side-caption,
+            .sidebar .profile-info {
+                display: none;
+            }
+
+            .sidebar .side-link {
+                justify-content: center;
+                padding: 12px 5px;
+            }
+
+            .sidebar .profile-mini {
+                justify-content: center;
+            }
+
+            .sidebar .brand {
+                justify-content: center;
+                padding: 8px 0 20px;
+            }
+
+            .sidebar .brand-name {
+                display: none;
             }
         }
     </style>
