@@ -1,59 +1,102 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# SchoolNexa – CASPA School OS
 
+<img width="1672" height="941" alt="SchoolNexa CASPA School OS Dashboard" src="https://github.com/user-attachments/assets/b91a399d-bf35-40f0-804f-0f8b5f813c72" />
+
+<br>
+<bold> 76 Screens | Role-Based Access | AI-Powered School Management</bold>
+<br>
 <p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
+  <a href="https://schoolnexa-erp.infinityfree.me">Live Demo</a> |
+  <a href="https://github.com/ShreyaaNChavan/School-ERP-System">GitHub Repository</a>
 </p>
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## About
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+**SchoolNexa – CASPA School OS** is a unified school management platform designed to simplify academic, administrative, and operational activities.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+With **76 designed screens**, it brings multiple school departments together through role-based workspaces, centralized management, and an integrated AI assistant.
 
-## Learning Laravel
+**Vision:** One School. One Platform. Complete Visibility. Controlled Access. Intelligent Automation.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## Key Modules
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- **User Management:** Role-based dashboards, profiles, roles and permissions.
+- **Academics:** Students, teachers, attendance, timetable, assignments and examinations.
+- **Admissions:** Enquiries, applications and counselling.
+- **Finance:** Fee structures, invoices, payments and receipts.
+- **HR & Payroll:** Employees, attendance, leave and payroll.
+- **Transport & Hostel:** Bus management, routes, tracking and room allocation.
+- **Library & Inventory:** Books, assets and procurement.
+- **Communication:** Announcements, messaging and parent-teacher meetings.
+- **Student Safety:** Grievances, anti-ragging, child protection and emergency management.
+- **CASPA AI:** Student learning, teacher assistance and principal intelligence.
+- **Administration:** Analytics, approvals, workflows and audit logs.
 
-## Laravel Sponsors
+## 76-Screen Design
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+The complete design covers authentication, dashboards, academics, admissions, finance, HR, operations, student safety, CASPA AI, analytics and platform administration.
 
-### Premium Partners
+The video showcases selected screens from the complete 76-screen design.
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+## Technology Stack
 
-## Contributing
+| Area | Technologies |
+|---|---|
+| Backend | PHP, Laravel 12 |
+| Frontend | HTML, CSS, JavaScript, Bootstrap, jQuery, Blade |
+| Database | MySQL |
+| Build Tools | Vite, NPM |
+| Tools | VS Code, Composer, Git, GitHub |
+| Hosting | InfinityFree |
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Run Locally
 
-## Code of Conduct
+**1. Clone the repository**
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+git clone https://github.com/ShreyaaNChavan/School-ERP-System.git
+```
 
-## Security Vulnerabilities
+**2. Navigate to the project**
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```bash
+cd School-ERP-System
+```
 
-## License
+**3. Install dependencies**
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```bash
+composer install
+npm install
+```
+
+**4. Configure environment**
+
+```bash
+copy .env.example .env
+php artisan key:generate
+```
+
+Configure your MySQL database credentials in `.env`.
+
+**5. Run the application**
+
+```bash
+php artisan migrate
+npm run build
+php artisan serve
+```
+
+Open `http://127.0.0.1:8000` in your browser.
+
+## Live Demo
+
+**[Visit SchoolNexa](https://schoolnexa-erp.infinityfree.me)**
+
+*The live demo represents the current deployment state. Some modules may still be under development.*
+
+---
+
+**SchoolNexa – One School. One Platform. A Smarter Way to Manage Education.**
